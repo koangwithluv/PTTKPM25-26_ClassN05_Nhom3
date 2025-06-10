@@ -1,9 +1,12 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
+import { useState } from "react"
 
 // Dữ liệu mẫu cho phân công giảng viên
 const assignments = [
@@ -28,6 +31,13 @@ const semesters = [
 ]
 
 export default function AssignmentsPage() {
+  const [search, setSearch] = useState("")
+  const filteredAssignments = assignments.filter((assignment) =>
+    assignment.lecturer.toLowerCase().includes(search.toLowerCase()) ||
+    assignment.class.toLowerCase().includes(search.toLowerCase()) ||
+    assignment.course.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -43,7 +53,7 @@ export default function AssignmentsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Tìm kiếm giảng viên..." className="pl-8" />
+          <Input type="search" placeholder="Tìm kiếm giảng viên..." className="pl-8" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <Select defaultValue="all">
           <SelectTrigger className="w-[180px]">
@@ -72,7 +82,7 @@ export default function AssignmentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {assignments.map((assignment) => (
+            {filteredAssignments.map((assignment) => (
               <TableRow key={assignment.id}>
                 <TableCell className="font-medium">{assignment.lecturer}</TableCell>
                 <TableCell>{assignment.class}</TableCell>

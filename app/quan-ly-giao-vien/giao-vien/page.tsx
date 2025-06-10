@@ -90,7 +90,7 @@ export default function TeachersPage() {
 							<TableRow key={teacher.id}>
 								<TableCell className="font-medium">{teacher.code}</TableCell>
 								<TableCell>{teacher.fullName}</TableCell>
-								<TableCell>{teacher.dateOfBirth}</TableCell>
+								<TableCell>{teacher.dateOfBirth ? new Date(teacher.dateOfBirth).toLocaleDateString('vi-VN') : ''}</TableCell>
 								<TableCell>{teacher.phone}</TableCell>
 								<TableCell>{teacher.email}</TableCell>
 								<TableCell>{getDepartmentName(teacher.departmentId)}</TableCell>
