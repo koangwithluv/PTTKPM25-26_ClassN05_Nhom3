@@ -6,37 +6,49 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
-
-// Dữ liệu mẫu cho phân công giảng viên
-const assignments = [
-  { id: 1, lecturer: "Nguyễn Văn A", class: "IT001.1", course: "Nhập môn lập trình", semester: "HK1 2023-2024" },
-  { id: 2, lecturer: "Trần Thị B", class: "IT001.2", course: "Nhập môn lập trình", semester: "HK1 2023-2024" },
-  { id: 3, lecturer: "Lê Văn C", class: "IT002.1", course: "Lập trình hướng đối tượng", semester: "HK1 2023-2024" },
-  {
-    id: 4,
-    lecturer: "Phạm Thị D",
-    class: "IT003.1",
-    course: "Cấu trúc dữ liệu và giải thuật",
-    semester: "HK2 2023-2024",
-  },
-  { id: 5, lecturer: "Hoàng Văn E", class: "IT004.1", course: "Cơ sở dữ liệu", semester: "HK2 2023-2024" },
-]
-
-// Dữ liệu mẫu cho kì học
-const semesters = [
-  { id: 1, name: "HK1 2023-2024" },
-  { id: 2, name: "HK2 2023-2024" },
-  { id: 3, name: "HK hè 2023-2024" },
-]
+import { useEffect, useState } from "react"
 
 export default function AssignmentsPage() {
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
   const [search, setSearch] = useState("")
-  const filteredAssignments = assignments.filter((assignment) =>
-    assignment.lecturer.toLowerCase().includes(search.toLowerCase()) ||
-    assignment.class.toLowerCase().includes(search.toLowerCase()) ||
-    assignment.course.toLowerCase().includes(search.toLowerCase())
-  )
+  const [semesters, setSemesters] = useState<any[]>([])
+  const [selectedSemester, setSelectedSemester] = useState("all")
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        const [assignmentsRes, semestersRes] = await Promise.all([
+          fetch("/api/assignments"),
+          fetch("/api/semesters"),
+        ])
+        if (!assignmentsRes.ok) throw new Error("Lỗi tải danh sách phân công")
+        if (!semestersRes.ok) throw new Error("Lỗi tải danh sách kì học")
+        const assignmentsData = await assignmentsRes.json()
+        const semestersData = await semestersRes.json()
+        setAssignments(assignmentsData)
+        setSemesters(semestersData)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+  }, [])
+
+  const filteredAssignments = assignments.filter((assignment) => {
+    const matchSearch =
+      assignment.lecturerName?.toLowerCase().includes(search.toLowerCase()) ||
+      assignment.classCode?.toLowerCase().includes(search.toLowerCase()) ||
+      assignment.courseName?.toLowerCase().includes(search.toLowerCase())
+    const matchSemester =
+      selectedSemester === "all" || assignment.semesterId?.toString() === selectedSemester
+    return matchSearch && matchSemester
+  })
 
   return (
     <div className="space-y-6">
@@ -53,15 +65,21 @@ export default function AssignmentsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Tìm kiếm giảng viên..." className="pl-8" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input
+            type="search"
+            placeholder="Tìm kiếm giảng viên..."
+            className="pl-8"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-        <Select defaultValue="all">
+        <Select value={selectedSemester} onValueChange={setSelectedSemester}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Chọn kì học" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Tất cả kì học</SelectItem>
-            {semesters.map((semester) => (
+            {semesters.map((semester: any) => (
               <SelectItem key={semester.id} value={semester.id.toString()}>
                 {semester.name}
               </SelectItem>
@@ -70,36 +88,51 @@ export default function AssignmentsPage() {
         </Select>
       </div>
 
-      <div className="border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Giảng viên</TableHead>
-              <TableHead>Mã lớp</TableHead>
-              <TableHead>Học phần</TableHead>
-              <TableHead>Kì học</TableHead>
-              <TableHead className="text-right">Thao tác</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredAssignments.map((assignment) => (
-              <TableRow key={assignment.id}>
-                <TableCell className="font-medium">{assignment.lecturer}</TableCell>
-                <TableCell>{assignment.class}</TableCell>
-                <TableCell>{assignment.course}</TableCell>
-                <TableCell>{assignment.semester}</TableCell>
-                <TableCell className="text-right">
-                  <Link href={`/quan-ly-lop-hoc-phan/phan-cong/${assignment.id}`}>
-                    <Button variant="ghost" size="sm">
-                      Chi tiết
-                    </Button>
-                  </Link>
-                </TableCell>
+      {error && <div className="text-red-600 text-sm">{error}</div>}
+      {loading ? (
+        <div className="text-center py-8">Đang tải...</div>
+      ) : (
+        <div className="border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Giảng viên</TableHead>
+                <TableHead>Mã lớp</TableHead>
+                <TableHead>Học phần</TableHead>
+                <TableHead>Kì học</TableHead>
+                <TableHead className="text-right">Thao tác</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {filteredAssignments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">
+                    Không có phân công nào
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredAssignments.map((assignment) => (
+                  <TableRow key={assignment.id}>
+                    <TableCell className="font-medium">{assignment.lecturerName}</TableCell>
+                    <TableCell>{assignment.classCode}</TableCell>
+                    <TableCell>{assignment.courseName}</TableCell>
+                    <TableCell>
+                      {semesters.find((s: any) => s.id === assignment.semesterId)?.name || ""}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/quan-ly-lop-hoc-phan/phan-cong/${assignment.id}`}>
+                        <Button variant="ghost" size="sm">
+                          Chi tiết
+                        </Button>
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   )
 }

@@ -74,6 +74,36 @@ const menuGroups = [
       },
     ],
   },
+  {
+    title: "Tính tiền dạy (UC3)",
+    items: [
+      {
+        title: "Tính tiền dạy",
+        href: "/tinh-tien-day",
+        icon: BarChart3,
+      },
+      {
+        title: "Định mức tiền/tiết",
+        href: "/tinh-tien-day/rate",
+        icon: BookOpen,
+      },
+      {
+        title: "Hệ số giáo viên",
+        href: "/tinh-tien-day/degree-coeff",
+        icon: GraduationCap,
+      },
+      {
+        title: "Hệ số lớp",
+        href: "/tinh-tien-day/class-coeff",
+        icon: Users,
+      },
+      {
+        title: "Lịch sử tính tiền dạy",
+        href: "/tinh-tien-day/history",
+        icon: Calendar,
+      },
+    ],
+  },
 ]
 
 export default function MainSidebar() {
@@ -81,6 +111,7 @@ export default function MainSidebar() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([
     "Quản lý thông tin giáo viên",
     "Quản lý lớp học phần",
+    "Tính tiền dạy (UC3)",
   ])
 
   const toggleGroup = (groupTitle: string) => {

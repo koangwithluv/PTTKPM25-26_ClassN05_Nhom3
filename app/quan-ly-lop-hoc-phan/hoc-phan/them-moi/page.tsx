@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 
 export default function AddCoursePage() {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     code: "",
     name: "",
@@ -18,18 +20,38 @@ export default function AddCoursePage() {
     coefficient: "",
     periods: "",
   })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Xử lý thêm học phần mới
-    console.log("Submitted:", formData)
-    // Sau khi thêm thành công, chuyển hướng về trang danh sách
-    // router.push("/quan-ly-lop-hoc-phan/hoc-phan")
+    setLoading(true)
+    setError("")
+    try {
+      const res = await fetch("/api/coueses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: formData.code,
+          name: formData.name,
+          credits: Number(formData.credits),
+          coefficient: Number(formData.coefficient),
+          periods: Number(formData.periods),
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Lỗi không xác định")
+      router.push("/quan-ly-lop-hoc-phan/hoc-phan")
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -114,11 +136,12 @@ export default function AddCoursePage() {
                 />
               </div>
             </div>
+            {error && <div className="text-red-600 text-sm">{error}</div>}
             <div className="flex justify-end space-x-2">
               <Link href="/quan-ly-lop-hoc-phan/hoc-phan">
                 <Button variant="outline">Hủy</Button>
               </Link>
-              <Button type="submit">Lưu</Button>
+              <Button type="submit" disabled={loading}>{loading ? "Đang lưu..." : "Lưu"}</Button>
             </div>
           </form>
         </CardContent>

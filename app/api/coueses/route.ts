@@ -13,6 +13,9 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const { code, name, credits, coefficient, periods } = await req.json()
+    if (!code || !name || !credits || !coefficient || !periods) {
+      return NextResponse.json({ error: 'Thiếu thông tin học phần.' }, { status: 400 })
+    }
     const [result]: any = await db.query(
       'INSERT INTO Course (code, name, credits, coefficient, periods) VALUES (?, ?, ?, ?, ?)',
       [code, name, credits, coefficient, periods]

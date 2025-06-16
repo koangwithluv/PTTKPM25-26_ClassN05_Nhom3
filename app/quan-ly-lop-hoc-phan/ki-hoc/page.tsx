@@ -5,19 +5,32 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
-
-// Dữ liệu mẫu cho kì học
-const semesters = [
-	{ id: 1, name: "Học kỳ 1", academicYear: "2023-2024", startDate: "15/08/2023", endDate: "31/12/2023" },
-	{ id: 2, name: "Học kỳ 2", academicYear: "2023-2024", startDate: "15/01/2024", endDate: "31/05/2024" },
-	{ id: 3, name: "Học kỳ hè", academicYear: "2023-2024", startDate: "01/06/2024", endDate: "31/07/2024" },
-	{ id: 4, name: "Học kỳ 1", academicYear: "2022-2023", startDate: "15/08/2022", endDate: "31/12/2022" },
-	{ id: 5, name: "Học kỳ 2", academicYear: "2022-2023", startDate: "15/01/2023", endDate: "31/05/2023" },
-]
+import { useEffect, useState } from "react"
 
 export default function SemestersPage() {
+	const [semesters, setSemesters] = useState<any[]>([])
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState("")
 	const [search, setSearch] = useState("")
+
+	useEffect(() => {
+		const fetchSemesters = async () => {
+			setLoading(true)
+			setError("")
+			try {
+				const res = await fetch("/api/semesters")
+				if (!res.ok) throw new Error("Lỗi tải danh sách kì học")
+				const data = await res.json()
+				setSemesters(data)
+			} catch (err: any) {
+				setError(err.message)
+			} finally {
+				setLoading(false)
+			}
+		}
+		fetchSemesters()
+	}, [])
+
 	const filteredSemesters = semesters.filter((semester) =>
 		semester.name.toLowerCase().includes(search.toLowerCase()) ||
 		semester.academicYear.toLowerCase().includes(search.toLowerCase())
@@ -42,36 +55,47 @@ export default function SemestersPage() {
 				</div>
 			</div>
 
-			<div className="border rounded-md">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Tên kì học</TableHead>
-							<TableHead>Năm học</TableHead>
-							<TableHead>Ngày bắt đầu</TableHead>
-							<TableHead>Ngày kết thúc</TableHead>
-							<TableHead className="text-right">Thao tác</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{filteredSemesters.map((semester) => (
-							<TableRow key={semester.id}>
-								<TableCell className="font-medium">{semester.name}</TableCell>
-								<TableCell>{semester.academicYear}</TableCell>
-								<TableCell>{semester.startDate}</TableCell>
-								<TableCell>{semester.endDate}</TableCell>
-								<TableCell className="text-right">
-									<Link href={`/quan-ly-lop-hoc-phan/ki-hoc/${semester.id}`}>
-										<Button variant="ghost" size="sm">
-											Chi tiết
-										</Button>
-									</Link>
-								</TableCell>
+			{error && <div className="text-red-600 text-sm">{error}</div>}
+			{loading ? (
+				<div className="text-center py-8">Đang tải...</div>
+			) : (
+				<div className="border rounded-md">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Tên kì học</TableHead>
+								<TableHead>Năm học</TableHead>
+								<TableHead>Ngày bắt đầu</TableHead>
+								<TableHead>Ngày kết thúc</TableHead>
+								<TableHead className="text-right">Thao tác</TableHead>
 							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</div>
+						</TableHeader>
+						<TableBody>
+							{filteredSemesters.length === 0 ? (
+								<TableRow>
+									<TableCell colSpan={5} className="text-center">Không có kì học nào</TableCell>
+								</TableRow>
+							) : (
+								filteredSemesters.map((semester) => (
+									<TableRow key={semester.id}>
+										<TableCell className="font-medium">{semester.name}</TableCell>
+										<TableCell>{semester.academicYear}</TableCell>
+										<TableCell>{semester.startDate}</TableCell>
+										<TableCell>{semester.endDate}</TableCell>
+										<TableCell className="text-right">
+											<Link href={`/quan-ly-lop-hoc-phan/ki-hoc/${semester.id}`}>
+												<Button variant="ghost" size="sm">
+													Chi tiết
+												</Button>
+											</Link>
+										</TableCell>
+									</TableRow>
+								))
+							)}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 		</div>
 	)
 }

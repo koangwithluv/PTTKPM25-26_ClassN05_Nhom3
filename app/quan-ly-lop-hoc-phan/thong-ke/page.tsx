@@ -5,26 +5,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { BarChart, Download } from "lucide-react"
-import { useState } from "react"
-
-// Dữ liệu mẫu cho năm học
-const academicYears = [
-  { id: 1, name: "2023-2024" },
-  { id: 2, name: "2022-2023" },
-  { id: 3, name: "2021-2022" },
-]
-
-// Dữ liệu mẫu cho thống kê
-const statisticsData = [
-  { id: 1, course: "IT001", name: "Nhập môn lập trình", semester1: 2, semester2: 1, summer: 0, total: 3 },
-  { id: 2, course: "IT002", name: "Lập trình hướng đối tượng", semester1: 1, semester2: 2, summer: 1, total: 4 },
-  { id: 3, course: "IT003", name: "Cấu trúc dữ liệu và giải thuật", semester1: 1, semester2: 1, summer: 0, total: 2 },
-  { id: 4, course: "IT004", name: "Cơ sở dữ liệu", semester1: 1, semester2: 1, summer: 1, total: 3 },
-  { id: 5, course: "IT005", name: "Mạng máy tính", semester1: 0, semester2: 2, summer: 0, total: 2 },
-]
+import { useEffect, useState } from "react"
 
 export default function StatisticsPage() {
-  const [selectedYear, setSelectedYear] = useState("1")
+  const [academicYears, setAcademicYears] = useState<any[]>([])
+  const [selectedYear, setSelectedYear] = useState("")
+  const [statisticsData, setStatisticsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true)
+      setError("")
+      try {
+        // Giả sử có API /api/statistics và /api/academic-years
+        const [yearsRes, statsRes] = await Promise.all([
+          fetch("/api/academic-years"),
+          fetch(`/api/statistics${selectedYear ? `?year=${selectedYear}` : ""}`)
+        ])
+        if (!yearsRes.ok) throw new Error("Lỗi tải năm học")
+        if (!statsRes.ok) throw new Error("Lỗi tải thống kê")
+        const yearsData = await yearsRes.json()
+        const statsData = await statsRes.json()
+        setAcademicYears(yearsData)
+        setStatisticsData(statsData)
+        if (!selectedYear && yearsData.length > 0) setSelectedYear(yearsData[0].id.toString())
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear])
 
   return (
     <div className="space-y-6">
@@ -51,7 +66,7 @@ export default function StatisticsPage() {
                 <SelectValue placeholder="Chọn năm học" />
               </SelectTrigger>
               <SelectContent>
-                {academicYears.map((year) => (
+                {academicYears.map((year: any) => (
                   <SelectItem key={year.id} value={year.id.toString()}>
                     {year.name}
                   </SelectItem>
@@ -60,49 +75,43 @@ export default function StatisticsPage() {
             </Select>
           </div>
 
-          <div className="border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Mã học phần</TableHead>
-                  <TableHead>Tên học phần</TableHead>
-                  <TableHead className="text-center">Học kỳ 1</TableHead>
-                  <TableHead className="text-center">Học kỳ 2</TableHead>
-                  <TableHead className="text-center">Học kỳ hè</TableHead>
-                  <TableHead className="text-center">Tổng cộng</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {statisticsData.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.course}</TableCell>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell className="text-center">{item.semester1}</TableCell>
-                    <TableCell className="text-center">{item.semester2}</TableCell>
-                    <TableCell className="text-center">{item.summer}</TableCell>
-                    <TableCell className="text-center font-medium">{item.total}</TableCell>
+          {error && <div className="text-red-600 text-sm">{error}</div>}
+          {loading ? (
+            <div className="text-center py-8">Đang tải...</div>
+          ) : (
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Mã học phần</TableHead>
+                    <TableHead>Tên học phần</TableHead>
+                    <TableHead className="text-center">Học kì 1</TableHead>
+                    <TableHead className="text-center">Học kì 2</TableHead>
+                    <TableHead className="text-center">Học kì hè</TableHead>
+                    <TableHead className="text-center">Tổng cộng</TableHead>
                   </TableRow>
-                ))}
-                <TableRow>
-                  <TableCell colSpan={2} className="font-bold">
-                    Tổng cộng
-                  </TableCell>
-                  <TableCell className="text-center font-bold">
-                    {statisticsData.reduce((sum, item) => sum + item.semester1, 0)}
-                  </TableCell>
-                  <TableCell className="text-center font-bold">
-                    {statisticsData.reduce((sum, item) => sum + item.semester2, 0)}
-                  </TableCell>
-                  <TableCell className="text-center font-bold">
-                    {statisticsData.reduce((sum, item) => sum + item.summer, 0)}
-                  </TableCell>
-                  <TableCell className="text-center font-bold">
-                    {statisticsData.reduce((sum, item) => sum + item.total, 0)}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {statisticsData.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center">Không có dữ liệu</TableCell>
+                    </TableRow>
+                  ) : (
+                    statisticsData.map((item: any) => (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.course}</TableCell>
+                        <TableCell>{item.name}</TableCell>
+                        <TableCell className="text-center">{item.semester1}</TableCell>
+                        <TableCell className="text-center">{item.semester2}</TableCell>
+                        <TableCell className="text-center">{item.summer}</TableCell>
+                        <TableCell className="text-center">{item.total}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
