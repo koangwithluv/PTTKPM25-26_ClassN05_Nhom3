@@ -80,8 +80,8 @@ export default function SemestersPage() {
 									<TableRow key={semester.id}>
 										<TableCell className="font-medium">{semester.name}</TableCell>
 										<TableCell>{semester.academicYear}</TableCell>
-										<TableCell>{semester.startDate}</TableCell>
-										<TableCell>{semester.endDate}</TableCell>
+										<TableCell>{semester.startDate ? new Date(semester.startDate).toLocaleDateString('vi-VN') : ''}</TableCell>
+										<TableCell>{semester.endDate ? new Date(semester.endDate).toLocaleDateString('vi-VN') : ''}</TableCell>
 										<TableCell className="text-right">
 											<Link href={`/quan-ly-lop-hoc-phan/ki-hoc/${semester.id}`}>
 												<Button variant="ghost" size="sm">

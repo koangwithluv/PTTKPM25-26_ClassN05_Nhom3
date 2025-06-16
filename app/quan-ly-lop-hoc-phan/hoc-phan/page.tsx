@@ -84,6 +84,8 @@ export default function CoursesPage() {
 										<TableCell className="text-center">{course.credits}</TableCell>
 										<TableCell className="text-center">{course.coefficient}</TableCell>
 										<TableCell className="text-center">{course.periods}</TableCell>
+										{/* Nếu có trường ngày (date) cần format */}
+										{/* <TableCell className="text-center">{course.startDate ? new Date(course.startDate).toLocaleDateString('vi-VN') : ''}</TableCell> */}
 										<TableCell className="text-right">
 											<Link href={`/quan-ly-lop-hoc-phan/hoc-phan/${course.id}`}>
 												<Button variant="ghost" size="sm">

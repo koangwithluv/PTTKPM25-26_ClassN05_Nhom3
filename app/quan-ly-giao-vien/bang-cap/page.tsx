@@ -5,19 +5,32 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
-
-// Dữ liệu mẫu cho bằng cấp
-const degrees = [
-	{ id: 1, fullName: "Tiến sĩ Khoa học máy tính", abbreviation: "TS.KHMT" },
-	{ id: 2, fullName: "Thạc sĩ Công nghệ thông tin", abbreviation: "ThS.CNTT" },
-	{ id: 3, fullName: "Kỹ sư Phần mềm", abbreviation: "KS.PM" },
-	{ id: 4, fullName: "Cử nhân Tin học", abbreviation: "CN.TH" },
-	{ id: 5, fullName: "Tiến sĩ Toán học", abbreviation: "TS.Toán" },
-]
+import { useEffect, useState } from "react"
 
 export default function DegreesPage() {
+	const [degrees, setDegrees] = useState<any[]>([])
 	const [search, setSearch] = useState("")
+	const [loading, setLoading] = useState(true)
+	const [error, setError] = useState("")
+
+	useEffect(() => {
+		const fetchDegrees = async () => {
+			setLoading(true)
+			setError("")
+			try {
+				const res = await fetch("/api/degrees")
+				if (!res.ok) throw new Error("Lỗi tải danh sách bằng cấp")
+				const data = await res.json()
+				setDegrees(data)
+			} catch (err: any) {
+				setError(err.message)
+			} finally {
+				setLoading(false)
+			}
+		}
+		fetchDegrees()
+	}, [])
+
 	const filteredDegrees = degrees.filter((degree) =>
 		degree.fullName.toLowerCase().includes(search.toLowerCase()) ||
 		degree.abbreviation.toLowerCase().includes(search.toLowerCase())
@@ -42,32 +55,37 @@ export default function DegreesPage() {
 				</div>
 			</div>
 
-			<div className="border rounded-md">
-				<Table>
-					<TableHeader>
-						<TableRow>
-							<TableHead>Tên đầy đủ</TableHead>
-							<TableHead>Tên viết tắt</TableHead>
-							<TableHead className="text-right">Thao tác</TableHead>
-						</TableRow>
-					</TableHeader>
-					<TableBody>
-						{filteredDegrees.map((degree) => (
-							<TableRow key={degree.id}>
-								<TableCell className="font-medium">{degree.fullName}</TableCell>
-								<TableCell>{degree.abbreviation}</TableCell>
-								<TableCell className="text-right">
-									<Link href={`/quan-ly-giao-vien/bang-cap/${degree.id}`}>
-										<Button variant="ghost" size="sm">
-											Chi tiết
-										</Button>
-									</Link>
-								</TableCell>
+			{error && <div className="text-red-600 text-sm">{error}</div>}
+			{loading ? (
+				<div className="text-center py-8">Đang tải...</div>
+			) : (
+				<div className="border rounded-md">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Tên đầy đủ</TableHead>
+								<TableHead>Tên viết tắt</TableHead>
+								<TableHead className="text-right">Thao tác</TableHead>
 							</TableRow>
-						))}
-					</TableBody>
-				</Table>
-			</div>
+						</TableHeader>
+						<TableBody>
+							{filteredDegrees.map((degree) => (
+								<TableRow key={degree.id}>
+									<TableCell className="font-medium">{degree.fullName}</TableCell>
+									<TableCell>{degree.abbreviation}</TableCell>
+									<TableCell className="text-right">
+										<Link href={`/quan-ly-giao-vien/bang-cap/${degree.id}`}>
+											<Button variant="ghost" size="sm">
+												Chi tiết
+											</Button>
+										</Link>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			)}
 		</div>
 	)
 }

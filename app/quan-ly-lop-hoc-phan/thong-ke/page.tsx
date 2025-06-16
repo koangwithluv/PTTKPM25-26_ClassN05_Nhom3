@@ -19,18 +19,44 @@ export default function StatisticsPage() {
       setLoading(true)
       setError("")
       try {
-        // Giả sử có API /api/statistics và /api/academic-years
-        const [yearsRes, statsRes] = await Promise.all([
-          fetch("/api/academic-years"),
-          fetch(`/api/statistics${selectedYear ? `?year=${selectedYear}` : ""}`)
+        // Lấy tất cả lớp học, học phần, kì học từ API thực tế
+        const [classesRes, coursesRes, semestersRes] = await Promise.all([
+          fetch("/api/classes"),
+          fetch("/api/coueses"),
+          fetch("/api/semesters")
         ])
-        if (!yearsRes.ok) throw new Error("Lỗi tải năm học")
-        if (!statsRes.ok) throw new Error("Lỗi tải thống kê")
-        const yearsData = await yearsRes.json()
-        const statsData = await statsRes.json()
-        setAcademicYears(yearsData)
-        setStatisticsData(statsData)
-        if (!selectedYear && yearsData.length > 0) setSelectedYear(yearsData[0].id.toString())
+        if (!classesRes.ok) throw new Error("Lỗi tải lớp học")
+        if (!coursesRes.ok) throw new Error("Lỗi tải học phần")
+        if (!semestersRes.ok) throw new Error("Lỗi tải kì học")
+        const classes = await classesRes.json()
+        const courses = await coursesRes.json()
+        const semesters = await semestersRes.json()
+        // Lấy danh sách năm học từ kì học
+        const years = Array.from(new Set(semesters.map((s: any) => s.academicYear)))
+          .map((name, idx) => ({ id: idx+1, name }))
+        setAcademicYears(years)
+        // Lọc theo năm học nếu có chọn
+        const filteredSemesters = selectedYear
+          ? semesters.filter((s: any) => s.academicYear === years.find((y: any) => y.id.toString() === selectedYear)?.name)
+          : semesters
+        // Thống kê số lớp mở cho từng học phần trong từng kì học
+        const statistics = courses.map((course: any) => {
+          const courseClasses = classes.filter((c: any) => c.courseId === course.id && filteredSemesters.some((s: any) => s.id === c.semesterId))
+          const sem1 = filteredSemesters.find((s: any) => s.name.toLowerCase().includes("1"))
+          const sem2 = filteredSemesters.find((s: any) => s.name.toLowerCase().includes("2"))
+          const summer = filteredSemesters.find((s: any) => s.name.toLowerCase().includes("hè"))
+          return {
+            id: course.id,
+            course: course.code,
+            name: course.name,
+            semester1: courseClasses.filter((c: any) => sem1 && c.semesterId === sem1.id).length,
+            semester2: courseClasses.filter((c: any) => sem2 && c.semesterId === sem2.id).length,
+            summer: courseClasses.filter((c: any) => summer && c.semesterId === summer.id).length,
+            total: courseClasses.length
+          }
+        })
+        setStatisticsData(statistics)
+        if (!selectedYear && years.length > 0) setSelectedYear(years[0].id.toString())
       } catch (err: any) {
         setError(err.message)
       } finally {
