@@ -75,7 +75,7 @@ const menuGroups = [
     ],
   },
   {
-    title: "Tính tiền dạy (UC3)",
+    title: "Tính tiền dạy",
     items: [
       {
         title: "Tính tiền dạy",
