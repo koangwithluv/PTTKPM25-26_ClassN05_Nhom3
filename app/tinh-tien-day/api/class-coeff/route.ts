@@ -12,7 +12,8 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const { minStudents, maxStudents, coeff, description } = await req.json()
+    let { minStudents, maxStudents, coeff, description } = await req.json()
+    if (description === undefined) description = ''
     const [result]: any = await db.query(
       'INSERT INTO ClassCoeff (minStudents, maxStudents, coeff, description) VALUES (?, ?, ?, ?)',
       [minStudents, maxStudents, coeff, description]

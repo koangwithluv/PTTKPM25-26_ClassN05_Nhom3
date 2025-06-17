@@ -9,6 +9,7 @@ import { useEffect, useState } from "react"
 
 export default function CoursesPage() {
 	const [courses, setCourses] = useState<any[]>([])
+	const [classCoeffs, setClassCoeffs] = useState<any[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState("")
 	const [search, setSearch] = useState("")
@@ -18,10 +19,16 @@ export default function CoursesPage() {
 			setLoading(true)
 			setError("")
 			try {
-				const res = await fetch("/api/coueses")
-				if (!res.ok) throw new Error("Lỗi tải danh sách học phần")
-				const data = await res.json()
-				setCourses(data)
+				const [resCourses, resClassCoeffs] = await Promise.all([
+					fetch("/api/coueses"),
+					fetch("/api/tinh-tien-day/class-coeff")
+				])
+				if (!resCourses.ok) throw new Error("Lỗi tải danh sách học phần")
+				if (!resClassCoeffs.ok) throw new Error("Lỗi tải hệ số lớp")
+				const dataCourses = await resCourses.json()
+				const dataClassCoeffs = await resClassCoeffs.json()
+				setCourses(dataCourses)
+				setClassCoeffs(dataClassCoeffs)
 			} catch (err: any) {
 				setError(err.message)
 			} finally {
@@ -35,6 +42,13 @@ export default function CoursesPage() {
 		course.name.toLowerCase().includes(search.toLowerCase()) ||
 		course.code.toLowerCase().includes(search.toLowerCase())
 	)
+
+	// Hàm tính hệ số lớp dựa trên số sinh viên và bảng hệ số lớp
+	function getClassCoeff(studentCount: number) {
+		if (!Array.isArray(classCoeffs) || classCoeffs.length === 0 || typeof studentCount !== 'number') return ''
+		const coeff = classCoeffs.find((c: any) => studentCount >= c.minStudents && studentCount <= c.maxStudents)
+		return coeff ? coeff.coeff : ''
+	}
 
 	return (
 		<div className="space-y-6">
@@ -68,13 +82,15 @@ export default function CoursesPage() {
 								<TableHead className="text-center">Số tín chỉ</TableHead>
 								<TableHead className="text-center">Hệ số</TableHead>
 								<TableHead className="text-center">Số tiết</TableHead>
+								<TableHead className="text-center">Số SV</TableHead>
+								<TableHead className="text-center">Hệ số lớp</TableHead>
 								<TableHead className="text-right">Thao tác</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{filteredCourses.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={6} className="text-center">Không có học phần nào</TableCell>
+									<TableCell colSpan={8} className="text-center">Không có học phần nào</TableCell>
 								</TableRow>
 							) : (
 								filteredCourses.map((course) => (
@@ -84,8 +100,8 @@ export default function CoursesPage() {
 										<TableCell className="text-center">{course.credits}</TableCell>
 										<TableCell className="text-center">{course.coefficient}</TableCell>
 										<TableCell className="text-center">{course.periods}</TableCell>
-										{/* Nếu có trường ngày (date) cần format */}
-										{/* <TableCell className="text-center">{course.startDate ? new Date(course.startDate).toLocaleDateString('vi-VN') : ''}</TableCell> */}
+										<TableCell className="text-center">{course.studentCount ?? ''}</TableCell>
+										<TableCell className="text-center">{getClassCoeff(course.studentCount)}</TableCell>
 										<TableCell className="text-right">
 											<Link href={`/quan-ly-lop-hoc-phan/hoc-phan/${course.id}`}>
 												<Button variant="ghost" size="sm">
