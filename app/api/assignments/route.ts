@@ -37,3 +37,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lỗi thêm mới phân công.' }, { status: 500 })
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { id, lecturerId, classId } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id phân công.' }, { status: 400 })
+    await db.query(
+      'UPDATE Assignment SET lecturerId = ?, classId = ? WHERE id = ?',
+      [lecturerId, classId, id]
+    )
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi cập nhật phân công.' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id phân công.' }, { status: 400 })
+    await db.query('DELETE FROM Assignment WHERE id = ?', [id])
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi xóa phân công.' }, { status: 500 })
+  }
+}

@@ -22,3 +22,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lỗi thêm mới khoa.' }, { status: 500 })
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { id, fullName, abbreviation, description } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id khoa.' }, { status: 400 })
+    await db.query(
+      'UPDATE Department SET fullName = ?, abbreviation = ?, description = ? WHERE id = ?',
+      [fullName, abbreviation, description, id]
+    )
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi cập nhật khoa.' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id khoa.' }, { status: 400 })
+    await db.query('DELETE FROM Department WHERE id = ?', [id])
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi xóa khoa.' }, { status: 500 })
+  }
+}

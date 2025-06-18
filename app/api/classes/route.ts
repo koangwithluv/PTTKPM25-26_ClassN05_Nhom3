@@ -22,3 +22,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lỗi thêm mới lớp học phần.' }, { status: 500 })
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { id, code, name, courseId, semesterId, students } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id lớp học.' }, { status: 400 })
+    await db.query(
+      'UPDATE Class SET code = ?, name = ?, courseId = ?, semesterId = ?, students = ? WHERE id = ?',
+      [code, name, courseId, semesterId, students, id]
+    )
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi cập nhật lớp học phần.' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id lớp học.' }, { status: 400 })
+    // Xóa Assignment liên quan đến lớp học này
+    await db.query('DELETE FROM Assignment WHERE classId = ?', [id])
+    // Xóa lớp học
+    await db.query('DELETE FROM Class WHERE id = ?', [id])
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi xóa lớp học phần.' }, { status: 500 })
+  }
+}

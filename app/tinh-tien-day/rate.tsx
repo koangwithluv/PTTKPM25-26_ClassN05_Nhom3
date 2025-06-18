@@ -133,45 +133,6 @@ export default function RatePage() {
           </table>
         </div>
       </Card>
-
-      {/* Bảng tổng hợp lương giáo viên */}
-      <Card className="max-w-4xl mx-auto p-8 mt-8 bg-background border shadow-md">
-        <h2 className="text-xl font-bold mb-6 text-primary">Bảng tổng hợp lương giáo viên</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full border text-sm">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border px-3 py-2">STT</th>
-                <th className="border px-3 py-2">Tên giáo viên</th>
-                <th className="border px-3 py-2">Tổng số tiết</th>
-                <th className="border px-3 py-2">Tổng tiền dạy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.values(history.reduce((acc, row) => {
-                if (!acc[row.teacherId]) {
-                  acc[row.teacherId] = {
-                    teacherName: row.teacherName,
-                    totalLessons: 0,
-                    totalMoney: 0
-                  }
-                }
-                acc[row.teacherId].totalLessons += row.numLessons
-                acc[row.teacherId].totalMoney += row.total
-                return acc
-              }, {} as Record<number, { teacherName: string, totalLessons: number, totalMoney: number }>)).map((row, idx) => (
-                <tr key={row.teacherName}>
-                  <td className="border px-3 py-2 text-center">{idx+1}</td>
-                  <td className="border px-3 py-2">{row.teacherName}</td>
-                  <td className="border px-3 py-2 text-right">{row.totalLessons}</td>
-                  <td className="border px-3 py-2 text-right font-semibold">{row.totalMoney.toLocaleString()} VNĐ</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {loadingHistory && <div className="mt-4 text-blue-600">Đang tải dữ liệu...</div>}
-      </Card>
     </>
   )
 }

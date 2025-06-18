@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<any[]>([])
@@ -15,22 +17,35 @@ export default function AssignmentsPage() {
   const [search, setSearch] = useState("")
   const [semesters, setSemesters] = useState<any[]>([])
   const [selectedSemester, setSelectedSemester] = useState("all")
+  const [teachers, setTeachers] = useState<any[]>([])
+  const [classes, setClasses] = useState<any[]>([])
+  const [editAssignment, setEditAssignment] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState<any | null>(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       setError("")
       try {
-        const [assignmentsRes, semestersRes] = await Promise.all([
+        const [assignmentsRes, semestersRes, teachersRes, classesRes] = await Promise.all([
           fetch("/api/assignments"),
           fetch("/api/semesters"),
+          fetch("/api/teachers"),
+          fetch("/api/classes"),
         ])
         if (!assignmentsRes.ok) throw new Error("Lỗi tải danh sách phân công")
         if (!semestersRes.ok) throw new Error("Lỗi tải danh sách kì học")
+        if (!teachersRes.ok) throw new Error("Lỗi tải danh sách giáo viên")
+        if (!classesRes.ok) throw new Error("Lỗi tải danh sách lớp học")
         const assignmentsData = await assignmentsRes.json()
         const semestersData = await semestersRes.json()
+        const teachersData = await teachersRes.json()
+        const classesData = await classesRes.json()
         setAssignments(assignmentsData)
         setSemesters(semestersData)
+        setTeachers(teachersData)
+        setClasses(classesData)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -39,6 +54,27 @@ export default function AssignmentsPage() {
     }
     fetchData()
   }, [])
+
+  const reloadAssignments = () => {
+    setLoading(true)
+    Promise.all([
+      fetch("/api/assignments"),
+      fetch("/api/semesters"),
+      fetch("/api/teachers"),
+      fetch("/api/classes"),
+    ])
+      .then(async ([assignmentsRes, semestersRes, teachersRes, classesRes]) => {
+        const assignmentsData = await assignmentsRes.json()
+        const semestersData = await semestersRes.json()
+        const teachersData = await teachersRes.json()
+        const classesData = await classesRes.json()
+        setAssignments(assignmentsData)
+        setSemesters(semestersData)
+        setTeachers(teachersData)
+        setClasses(classesData)
+      })
+      .finally(() => setLoading(false))
+  }
 
   const filteredAssignments = assignments.filter((assignment) => {
     const matchSearch =
@@ -49,6 +85,41 @@ export default function AssignmentsPage() {
       selectedSemester === "all" || assignment.semesterId?.toString() === selectedSemester
     return matchSearch && matchSemester
   })
+
+  const handleEdit = (assignment: any) => {
+    setEditAssignment(assignment)
+    setEditForm({ lecturerId: assignment.lecturerId, classId: assignment.classId })
+  }
+  const handleEditSelect = (name: string, value: string) => {
+    setEditForm((prev: any) => ({ ...prev, [name]: value }))
+  }
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    await fetch("/api/assignments", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...editForm, id: editAssignment.id }),
+    })
+    setSaving(false)
+    setEditAssignment(null)
+    setEditForm(null)
+    reloadAssignments()
+  }
+  const handleDelete = async (assignment: any) => {
+    if (
+      confirm(
+        `Bạn có chắc muốn xóa phân công của giảng viên "${assignment.lecturerName}" cho lớp "${assignment.classCode}"?`
+      )
+    ) {
+      await fetch("/api/assignments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: assignment.id }),
+      })
+      reloadAssignments()
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -120,11 +191,22 @@ export default function AssignmentsPage() {
                       {semesters.find((s: any) => s.id === assignment.semesterId)?.name || ""}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Link href={`/quan-ly-lop-hoc-phan/phan-cong/${assignment.id}`}>
-                        <Button variant="ghost" size="sm">
-                          Chi tiết
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(assignment)}
+                        className="ml-2"
+                      >
+                        Sửa
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(assignment)}
+                        className="ml-2"
+                      >
+                        Xóa
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -133,6 +215,75 @@ export default function AssignmentsPage() {
           </Table>
         </div>
       )}
+
+      <Dialog
+        open={!!editAssignment}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditAssignment(null)
+            setEditForm(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sửa phân công</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit} className="space-y-4">
+            <div>
+              <Label>Giảng viên</Label>
+              <Select
+                value={editForm?.lecturerId?.toString() || ""}
+                onValueChange={(v) => handleEditSelect("lecturerId", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn giảng viên" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teachers.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id.toString()}>
+                      {t.fullName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Lớp học</Label>
+              <Select
+                value={editForm?.classId?.toString() || ""}
+                onValueChange={(v) => handleEditSelect("classId", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Chọn lớp học" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((c: any) => (
+                    <SelectItem key={c.id} value={c.id.toString()}>
+                      {c.code} - {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditAssignment(null)
+                  setEditForm(null)
+                }}
+              >
+                Hủy
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Đang lưu..." : "Lưu"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

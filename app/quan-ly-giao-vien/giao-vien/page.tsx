@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Search } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
 
 export default function TeachersPage() {
 	const [teachers, setTeachers] = useState<any[]>([])
@@ -14,6 +16,11 @@ export default function TeachersPage() {
 	const [degrees, setDegrees] = useState<any[]>([])
 	const [filterDepartment, setFilterDepartment] = useState<string>("all")
 	const [search, setSearch] = useState("")
+	const [editTeacher, setEditTeacher] = useState<any|null>(null)
+	const [editForm, setEditForm] = useState<any|null>(null)
+	const [saving, setSaving] = useState(false)
+	const [deleteInfo, setDeleteInfo] = useState<any|null>(null);
+	const [deleting, setDeleting] = useState(false);
 
 	useEffect(() => {
 		fetch("/api/teachers").then((res) => res.json()).then(setTeachers)
@@ -32,6 +39,49 @@ export default function TeachersPage() {
 			teacher.email.toLowerCase().includes(search.toLowerCase())
 		return matchDepartment && matchSearch
 	})
+
+	const handleEdit = (teacher: any) => {
+		setEditTeacher(teacher)
+		setEditForm({ ...teacher })
+	}
+	const handleEditChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target
+		setEditForm((prev: any) => ({ ...prev, [name]: value }))
+	}
+	const handleEditSelect = (name: string, value: string) => {
+		setEditForm((prev: any) => ({ ...prev, [name]: value }))
+	}
+	const handleEditSubmit = async (e: React.FormEvent) => {
+		e.preventDefault()
+		setSaving(true)
+		await fetch(`/api/teachers?id=${editTeacher.id}`, {
+			method: "PUT",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(editForm)
+		})
+		setSaving(false)
+		setEditTeacher(null)
+		setEditForm(null)
+		fetch("/api/teachers").then((res) => res.json()).then(setTeachers)
+	}
+	const handleDelete = async (teacher: any) => {
+		setDeleting(true);
+		// Lấy dữ liệu liên quan
+		const res = await fetch(`/api/teachers/related?id=${teacher.id}`);
+		const related = await res.json();
+		setDeleteInfo({ teacher, related });
+		setDeleting(false);
+	}
+	const confirmDelete = async () => {
+		if (!deleteInfo) return;
+		await fetch(`/api/teachers`, {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ id: deleteInfo.teacher.id })
+		});
+		setDeleteInfo(null);
+		fetch("/api/teachers").then((res) => res.json()).then(setTeachers);
+	}
 
 	return (
 		<div className="space-y-6">
@@ -96,17 +146,95 @@ export default function TeachersPage() {
 								<TableCell>{getDepartmentName(teacher.departmentId)}</TableCell>
 								<TableCell>{getDegreeName(teacher.degreeId)}</TableCell>
 								<TableCell className="text-right">
-									<Link href={`/quan-ly-giao-vien/giao-vien/${teacher.id}`}>
-										<Button variant="ghost" size="sm">
-											Chi tiết
-										</Button>
-									</Link>
+									<Button variant="outline" size="sm" onClick={() => handleEdit(teacher)} className="ml-2">Sửa</Button>
+									<Button variant="destructive" size="sm" onClick={() => handleDelete(teacher)} className="ml-2" disabled={deleting}>Xóa</Button>
 								</TableCell>
 							</TableRow>
 						))}
 					</TableBody>
 				</Table>
 			</div>
+
+			<Dialog open={!!editTeacher} onOpenChange={open => { if (!open) { setEditTeacher(null); setEditForm(null); } }}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Sửa thông tin giáo viên</DialogTitle>
+					</DialogHeader>
+					<form onSubmit={handleEditSubmit} className="space-y-4">
+						<div>
+							<Label>Mã số</Label>
+							<Input name="code" value={editForm?.code || ''} onChange={handleEditChange} required />
+						</div>
+						<div>
+							<Label>Họ tên</Label>
+							<Input name="fullName" value={editForm?.fullName || ''} onChange={handleEditChange} required />
+						</div>
+						<div>
+							<Label>Ngày sinh</Label>
+							<Input name="dateOfBirth" type="date" value={editForm?.dateOfBirth ? editForm.dateOfBirth.slice(0,10) : ''} onChange={handleEditChange} required />
+						</div>
+						<div>
+							<Label>Điện thoại</Label>
+							<Input name="phone" value={editForm?.phone || ''} onChange={handleEditChange} required />
+						</div>
+						<div>
+							<Label>Email</Label>
+							<Input name="email" value={editForm?.email || ''} onChange={handleEditChange} required />
+						</div>
+						<div>
+							<Label>Khoa</Label>
+							<Select value={editForm?.departmentId?.toString() || ''} onValueChange={v => handleEditSelect('departmentId', v)}>
+								<SelectTrigger><SelectValue placeholder="Chọn khoa" /></SelectTrigger>
+								<SelectContent>
+									{departments.map((d: any) => <SelectItem key={d.id} value={d.id.toString()}>{d.fullName || d.name}</SelectItem>)}
+								</SelectContent>
+							</Select>
+						</div>
+						<div>
+							<Label>Bằng cấp</Label>
+							<Select value={editForm?.degreeId?.toString() || ''} onValueChange={v => handleEditSelect('degreeId', v)}>
+								<SelectTrigger><SelectValue placeholder="Chọn bằng cấp" /></SelectTrigger>
+								<SelectContent>
+									{degrees.map((d: any) => <SelectItem key={d.id} value={d.id.toString()}>{d.fullName || d.name}</SelectItem>)}
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="flex justify-end gap-2">
+							<Button type="button" variant="outline" onClick={() => { setEditTeacher(null); setEditForm(null); }}>Hủy</Button>
+							<Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</Button>
+						</div>
+					</form>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={!!deleteInfo} onOpenChange={open => { if (!open) setDeleteInfo(null); }}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Xác nhận xóa giáo viên</DialogTitle>
+					</DialogHeader>
+					{deleteInfo && (
+						<div className="space-y-2">
+							<p>Bạn có chắc muốn xóa giáo viên <b>{deleteInfo.teacher.fullName}</b>?</p>
+							{deleteInfo.related?.assignments?.length > 0 && (
+								<div className="text-sm text-red-600">
+									<p>Các phân công liên quan sẽ bị xóa cùng:</p>
+									<ul className="list-disc ml-5">
+										{deleteInfo.related.assignments.map((asg: any) => (
+											<li key={asg.id}>
+												Mã phân công: <b>{asg.id}</b> - Mã lớp: <b>{asg.classId}</b>
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+							<div className="flex justify-end gap-2 pt-2">
+								<Button type="button" variant="outline" onClick={() => setDeleteInfo(null)}>Hủy</Button>
+								<Button type="button" variant="destructive" onClick={confirmDelete}>Xóa</Button>
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

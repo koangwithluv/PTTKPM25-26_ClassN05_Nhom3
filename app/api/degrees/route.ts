@@ -22,3 +22,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lỗi thêm mới bằng cấp.' }, { status: 500 })
   }
 }
+
+export async function PUT(req: NextRequest) {
+  try {
+    const { id, fullName, abbreviation } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id bằng cấp.' }, { status: 400 })
+    await db.query(
+      'UPDATE Degree SET fullName = ?, abbreviation = ? WHERE id = ?',
+      [fullName, abbreviation, id]
+    )
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi cập nhật bằng cấp.' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id bằng cấp.' }, { status: 400 })
+    // Xóa giáo viên liên quan đến bằng cấp này (nếu muốn cứng, có thể xóa hoặc cập nhật degreeId=null)
+    await db.query('DELETE FROM Teacher WHERE degreeId = ?', [id])
+    // Xóa bằng cấp
+    await db.query('DELETE FROM Degree WHERE id = ?', [id])
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi xóa bằng cấp.' }, { status: 500 })
+  }
+}

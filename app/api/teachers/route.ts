@@ -22,3 +22,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Lỗi thêm mới giáo viên.' }, { status: 500 })
   }
 }
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { id } = await req.json()
+    if (!id) return NextResponse.json({ error: 'Thiếu id giáo viên.' }, { status: 400 })
+    // Xóa Assignment liên quan đến giáo viên này
+    await db.query('DELETE FROM Assignment WHERE lecturerId = ?', [id])
+    // Xóa giáo viên
+    await db.query('DELETE FROM Teacher WHERE id = ?', [id])
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Lỗi xóa giáo viên.' }, { status: 500 })
+  }
+}
