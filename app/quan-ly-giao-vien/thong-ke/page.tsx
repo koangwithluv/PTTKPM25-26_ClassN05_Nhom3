@@ -21,9 +21,10 @@ export default function TeacherStatisticsPage() {
 
   // Tính toán thống kê động
   const totalTeachers = teachers.length
-  const phdDegreeIds = degrees.filter(d => d.fullName?.toLowerCase().includes("tiến sĩ")).map(d => d.id)
-  const masterDegreeIds = degrees.filter(d => d.fullName?.toLowerCase().includes("thạc sĩ")).map(d => d.id)
-  const bachelorDegreeIds = degrees.filter(d => d.fullName?.toLowerCase().includes("cử nhân") || d.fullName?.toLowerCase().includes("kỹ sư")).map(d => d.id)
+  const normalize = (str: string) => str?.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '') || ''
+  const phdDegreeIds = degrees.filter(d => normalize(d.fullName).includes("tien si") || normalize(d.abbreviation).includes("ts") || normalize(d.fullName).includes("phd")).map(d => d.id)
+  const masterDegreeIds = degrees.filter(d => normalize(d.fullName).includes("thac si") || normalize(d.abbreviation).includes("ths") || normalize(d.fullName).includes("msc")).map(d => d.id)
+  const bachelorDegreeIds = degrees.filter(d => normalize(d.fullName).includes("cu nhan") || normalize(d.fullName).includes("ky su") || normalize(d.abbreviation).includes("dh") || normalize(d.fullName).includes("bachelor") || normalize(d.fullName).includes("engineer")).map(d => d.id)
 
   const departmentStats = departments.map((dep) => {
     const teachersInDep = teachers.filter(t => t.departmentId === dep.id)
@@ -45,6 +46,17 @@ export default function TeacherStatisticsPage() {
     { id: 2, degree: "Thạc sĩ", count: masterCount, percentage: totalTeachers ? Math.round((masterCount/totalTeachers)*100) : 0 },
     { id: 3, degree: "Cử nhân/Kỹ sư", count: bachelorCount, percentage: totalTeachers ? Math.round((bachelorCount/totalTeachers)*100) : 0 },
   ]
+
+  // Thống kê theo bằng cấp thực tế
+  const degreeRealStats = degrees.map((deg) => {
+    const count = teachers.filter(t => t.degreeId === deg.id).length;
+    return {
+      id: deg.id,
+      degree: deg.fullName + (deg.abbreviation ? ` (${deg.abbreviation})` : ""),
+      count,
+      percentage: totalTeachers ? Math.round((count/totalTeachers)*100) : 0
+    }
+  });
 
   return (
     <div className="space-y-6">
@@ -172,7 +184,7 @@ export default function TeacherStatisticsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {degreeStats.map((stat) => (
+                {degreeRealStats.map((stat) => (
                   <TableRow key={stat.id}>
                     <TableCell className="font-medium">{stat.degree}</TableCell>
                     <TableCell className="text-center">{stat.count}</TableCell>

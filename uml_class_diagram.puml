@@ -1,0 +1,90 @@
+@startuml
+' Sơ đồ lớp (Class Diagram) cho ứng dụng quản lý tính lương giảng viên
+
+class Teacher {
+  +id: int
+  +code: string
+  +fullName: string
+  +dateOfBirth: date
+  +phone: string
+  +email: string
+  +departmentId: int
+  +degreeId: int
+}
+
+class Department {
+  +id: int
+  +fullName: string
+  +abbreviation: string
+}
+
+class Degree {
+  +id: int
+  +fullName: string
+  +abbreviation: string
+}
+
+class Course {
+  +id: int
+  +code: string
+  +name: string
+  +credits: int
+  +coefficient: float
+  +periods: int
+}
+
+class Semester {
+  +id: int
+  +name: string
+  +academicYear: string
+  +startDate: date
+  +endDate: date
+}
+
+class Class {
+  +id: int
+  +code: string
+  +name: string
+  +courseId: int
+  +semesterId: int
+  +students: int
+  +periods: int
+}
+
+class Assignment {
+  +id: int
+  +lecturerId: int
+  +classId: int
+}
+
+class ClassCoeff {
+  +id: int
+  +minStudents: int
+  +maxStudents: int
+  +coeff: float
+  +description: string
+}
+
+class DegreeCoeff {
+  +id: int
+  +degreeId: int
+  +coeff: float
+  +description: string
+}
+
+class Rate {
+  +id: int
+  +name: string
+  +value: float
+  +description: string
+  +appliedFrom: date
+}
+
+Teacher --> Department
+Teacher --> Degree
+Class --> Course
+Class --> Semester
+Assignment --> Teacher : lecturerId
+Assignment --> Class
+DegreeCoeff --> Degree
+@enduml

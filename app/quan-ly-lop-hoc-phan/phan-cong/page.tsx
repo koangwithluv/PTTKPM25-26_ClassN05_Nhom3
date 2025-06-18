@@ -22,6 +22,9 @@ export default function AssignmentsPage() {
   const [editAssignment, setEditAssignment] = useState<any | null>(null)
   const [editForm, setEditForm] = useState<any | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleteAssignment, setDeleteAssignment] = useState<any | null>(null)
+  const [relatedData, setRelatedData] = useState<any | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -107,18 +110,40 @@ export default function AssignmentsPage() {
     reloadAssignments()
   }
   const handleDelete = async (assignment: any) => {
-    if (
-      confirm(
-        `Bạn có chắc muốn xóa phân công của giảng viên "${assignment.lecturerName}" cho lớp "${assignment.classCode}"?`
-      )
-    ) {
-      await fetch("/api/assignments", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: assignment.id }),
-      })
-      reloadAssignments()
+    setDeleteAssignment(assignment)
+    setRelatedData(null)
+    // Lấy dữ liệu liên quan
+    try {
+      const res = await fetch(`/api/assignments/related?id=${assignment.id}`)
+      if (res.ok) {
+        const data = await res.json()
+        setRelatedData(data)
+      } else {
+        setRelatedData({ error: "Không lấy được dữ liệu liên quan." })
+      }
+    } catch {
+      setRelatedData({ error: "Không lấy được dữ liệu liên quan." })
     }
+  }
+  const confirmDelete = async () => {
+    if (!deleteAssignment) return
+    setDeleting(true)
+    await fetch("/api/assignments", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: deleteAssignment.id }),
+    })
+    setDeleting(false)
+    setDeleteAssignment(null)
+    setRelatedData(null)
+    reloadAssignments()
+  }
+
+  const handleCloseDialog = () => {
+    setEditAssignment(null)
+    setEditForm(null)
+    setDeleteAssignment(null)
+    setRelatedData(null)
   }
 
   return (
@@ -216,15 +241,7 @@ export default function AssignmentsPage() {
         </div>
       )}
 
-      <Dialog
-        open={!!editAssignment}
-        onOpenChange={(open) => {
-          if (!open) {
-            setEditAssignment(null)
-            setEditForm(null)
-          }
-        }}
-      >
+      <Dialog open={!!editAssignment} onOpenChange={(open) => { if (!open) handleCloseDialog() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Sửa phân công</DialogTitle>
@@ -282,6 +299,60 @@ export default function AssignmentsPage() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteAssignment} onOpenChange={open => { if (!open) { setDeleteAssignment(null); setRelatedData(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xác nhận xóa phân công</DialogTitle>
+          </DialogHeader>
+          {deleteAssignment && (
+            <div className="space-y-2">
+              <div>
+                Bạn có chắc muốn xóa phân công của giảng viên{" "}
+                <b>"{deleteAssignment.lecturerName}"</b> cho lớp <b>"{deleteAssignment.classCode}"</b>?
+              </div>
+              {relatedData === null && <div>Đang kiểm tra dữ liệu liên quan...</div>}
+              {relatedData?.error && <div className="text-red-600">{relatedData.error}</div>}
+              {relatedData && !relatedData.error && (
+                <div className="text-sm text-gray-700 space-y-1">
+                  {relatedData.assignment && (
+                    <div>
+                      <b>Thông tin phân công:</b>
+                      <ul className="list-disc ml-5">
+                        <li>Giảng viên: {relatedData.teacher?.fullName || deleteAssignment.lecturerName}</li>
+                        <li>
+                          Lớp: {relatedData.class?.code} - {relatedData.class?.name}
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                  {!relatedData.assignment && <div>Không có dữ liệu liên quan.</div>}
+                </div>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDeleteAssignment(null)
+                    setRelatedData(null)
+                  }}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleting || relatedData === null}
+                  onClick={confirmDelete}
+                >
+                  {deleting ? "Đang xóa..." : "Xác nhận xóa"}
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

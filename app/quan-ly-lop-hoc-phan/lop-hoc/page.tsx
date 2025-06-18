@@ -21,6 +21,9 @@ export default function ClassesPage() {
 	const [editClass, setEditClass] = useState<any|null>(null)
 	const [editForm, setEditForm] = useState<any|null>(null)
 	const [saving, setSaving] = useState(false)
+	const [deleteClass, setDeleteClass] = useState<any|null>(null);
+	const [relatedData, setRelatedData] = useState<any|null>(null);
+	const [deleting, setDeleting] = useState(false);
 
 	useEffect(() => {
 		const fetchData = async () => {
@@ -100,15 +103,35 @@ export default function ClassesPage() {
 		reloadClasses()
 	}
 	const handleDelete = async (classItem: any) => {
-		if (confirm(`Bạn có chắc muốn xóa lớp học "${classItem.name}"?`)) {
-			await fetch("/api/classes", {
-				method: "DELETE",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ id: classItem.id })
-			})
-			reloadClasses()
+		setDeleteClass(classItem);
+		setRelatedData(null);
+		// Lấy dữ liệu liên quan
+		try {
+			const res = await fetch(`/api/classes/related?id=${classItem.id}`);
+			if (res.ok) {
+				const data = await res.json();
+				setRelatedData(data);
+			} else {
+				setRelatedData({ error: 'Không lấy được dữ liệu liên quan.' });
+			}
+		} catch {
+			setRelatedData({ error: 'Không lấy được dữ liệu liên quan.' });
 		}
-	}
+	};
+
+	const confirmDelete = async () => {
+		if (!deleteClass) return;
+		setDeleting(true);
+		await fetch("/api/classes", {
+			method: "DELETE",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ id: deleteClass.id })
+		});
+		setDeleting(false);
+		setDeleteClass(null);
+		setRelatedData(null);
+		reloadClasses();
+	};
 
 	return (
 		<div className="space-y-6">
@@ -224,6 +247,38 @@ export default function ClassesPage() {
 							<Button type="submit" disabled={saving}>{saving ? 'Đang lưu...' : 'Lưu'}</Button>
 						</div>
 					</form>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog open={!!deleteClass} onOpenChange={open => { if (!open) { setDeleteClass(null); setRelatedData(null); } }}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Xác nhận xóa lớp học</DialogTitle>
+					</DialogHeader>
+					{deleteClass && (
+						<div className="space-y-2">
+							<div>Bạn có chắc muốn xóa lớp học <b>"{deleteClass.name}"</b>?</div>
+							{relatedData === null && <div>Đang kiểm tra dữ liệu liên quan...</div>}
+							{relatedData?.error && <div className="text-red-600">{relatedData.error}</div>}
+							{relatedData && !relatedData.error && (
+								<div className="text-sm text-gray-700 space-y-1">
+									{relatedData.assignments?.length > 0 && (
+										<div>
+											<b>Phân công liên quan ({relatedData.assignments.length}):</b>
+											<ul className="list-disc ml-5">
+												{relatedData.assignments.map((a: any) => <li key={a.id}>GV: {a.teacherId}</li>)}
+											</ul>
+										</div>
+									)}
+									{(!relatedData.assignments?.length) && <div>Không có dữ liệu liên quan.</div>}
+								</div>
+							)}
+							<div className="flex justify-end gap-2 pt-2">
+								<Button type="button" variant="outline" onClick={() => { setDeleteClass(null); setRelatedData(null); }}>Hủy</Button>
+								<Button type="button" variant="destructive" disabled={deleting || relatedData === null} onClick={confirmDelete}>{deleting ? 'Đang xóa...' : 'Xác nhận xóa'}</Button>
+							</div>
+						</div>
+					)}
 				</DialogContent>
 			</Dialog>
 		</div>
