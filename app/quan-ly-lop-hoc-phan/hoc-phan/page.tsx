@@ -212,7 +212,7 @@ export default function CoursesPage() {
 											<ul className="list-disc ml-5">
 												{deleteInfo.related.assignments.map((asg: any) => (
 													<li key={asg.id}>
-														Mã lớp: <b>{asg.classId}</b> - Mã phân công: <b>{asg.id}</b>
+														Mã lớp: <b>{asg.classId}</b> - Giảng viên: <b>{asg.teacherName || asg.teacherId}</b> - Mã phân công: <b>{asg.id}</b>
 													</li>
 												))}
 											</ul>

@@ -8,11 +8,16 @@ export async function GET(req: NextRequest) {
   try {
     // Lấy danh sách lớp học liên quan
     const [classes]: any = await db.query('SELECT * FROM Class WHERE courseId = ?', [id])
-    // Lấy danh sách phân công liên quan đến các lớp học này
+    // Lấy danh sách phân công liên quan đến các lớp học này, join lấy tên giảng viên
     let assignments: any[] = []
     if (classes.length > 0) {
       const classIds = classes.map((c: any) => c.id)
-      const [asgs]: any = await db.query(`SELECT * FROM Assignment WHERE classId IN (${classIds.map(() => '?').join(',')})`, classIds)
+      const [asgs]: any = await db.query(`
+        SELECT a.*, t.fullName as teacherName, t.id as teacherId
+        FROM Assignment a
+        JOIN Teacher t ON a.lecturerId = t.id
+        WHERE a.classId IN (${classIds.map(() => '?').join(',')})
+      `, classIds)
       assignments = asgs
     }
     return NextResponse.json({ classes, assignments })

@@ -14,12 +14,12 @@ export async function GET(req: Request) {
       "SELECT * FROM Class WHERE semesterId = ?",
       [semesterId]
     );
-    // Lấy các phân công liên quan đến các lớp học này
+    // Lấy các phân công liên quan đến các lớp học này, join lấy tên giảng viên
     let assignments = [];
     if (classes.length > 0) {
       const classIds = classes.map((c: any) => c.id);
       const [asmt]: any = await db.query(
-        `SELECT * FROM Assignment WHERE classId IN (${classIds.map(() => '?').join(',')})`,
+        `SELECT a.*, t.fullName as teacherName, t.id as teacherId FROM Assignment a JOIN Teacher t ON a.lecturerId = t.id WHERE a.classId IN (${classIds.map(() => '?').join(',')})`,
         classIds
       );
       assignments = asmt;

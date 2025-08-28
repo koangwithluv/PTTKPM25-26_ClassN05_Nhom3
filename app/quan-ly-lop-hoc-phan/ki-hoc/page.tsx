@@ -213,7 +213,11 @@ export default function SemestersPage() {
 										<div>
 											<b>Phân công liên quan ({relatedData.assignments.length}):</b>
 											<ul className="list-disc ml-5">
-												{relatedData.assignments.map((a: any) => <li key={a.id}>Lớp: {a.classId}, GV: {a.teacherId}</li>)}
+												{relatedData.assignments.map((a: any) => (
+													<li key={a.id}>
+														Lớp: {a.classId}, GV: <b>{a.teacherName || a.teacherId}</b>
+													</li>
+												))}
 											</ul>
 										</div>
 									)}
