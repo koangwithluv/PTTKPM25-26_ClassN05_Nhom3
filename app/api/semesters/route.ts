@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 // Update the import path to match the actual location and filename (case-sensitive)
-import { db } from '../../../lib/connect_Sql'
+import { db } from '@/lib/connect_Sql'
 
 
 export async function GET() {

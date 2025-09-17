@@ -24,14 +24,11 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["SRC/*"],
-      "@/lib/*": ["SRC/lib/*"],
-      "@/hooks/*": ["SRC/hooks/*"],
-      "@/components/*": ["SRC/components/*"]
+      "@/*": ["SRC/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
+    "../next-env.d.ts.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"

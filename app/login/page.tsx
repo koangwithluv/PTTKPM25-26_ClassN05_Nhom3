@@ -18,12 +18,19 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    console.log("Form submitted:", form)
+    
     // Fake login logic, replace with real API call
     if (form.username === "admin" && form.password === "admin") {
+      console.log("Login successful!")
       // Save login state (for demo, use localStorage)
       localStorage.setItem("isLoggedIn", "true")
-      router.push("/")
+      console.log("After setting localStorage:", localStorage.getItem("isLoggedIn"))
+      console.log("Redirecting to dashboard...")
+      // Sử dụng replace thay vì push để tránh quay lại login
+      router.replace("/quan-ly-giao-vien/bang-cap")
     } else {
+      console.log("Login failed!")
       setError("Sai tên đăng nhập hoặc mật khẩu!")
     }
   }

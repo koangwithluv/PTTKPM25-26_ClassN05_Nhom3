@@ -1,4 +1,4 @@
-import MainSidebar from '../../components/main-sidebar'
+import MainSidebar from '@/components/main-sidebar'
 
 export default function TinhTienDayLayout({ children }: { children: React.ReactNode }) {
   return (
