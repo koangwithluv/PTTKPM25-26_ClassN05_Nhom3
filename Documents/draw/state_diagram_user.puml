@@ -1,0 +1,57 @@
+@startuml State_Diagram_User_Session
+!theme plain
+
+title Biểu đồ Trạng thái - Phiên đăng nhập của User
+
+[*] --> Visitor : Truy cập hệ thống
+
+state Visitor {
+  Visitor : Chưa đăng nhập
+  Visitor : Chỉ thấy trang login
+}
+
+state Authenticated {
+  Authenticated : Đã đăng nhập
+  Authenticated : Có quyền truy cập các chức năng
+  
+  state Admin {
+    Admin : Quản trị viên
+    Admin : Toàn quyền quản lý
+    
+    Admin --> ManagingData : Quản lý dữ liệu
+    Admin --> ConfiguringSystem : Cấu hình hệ số
+    Admin --> CalculatingSalary : Tính lương
+    Admin --> ViewingReports : Xem báo cáo
+    
+    ManagingData --> Admin
+    ConfiguringSystem --> Admin  
+    CalculatingSalary --> Admin
+    ViewingReports --> Admin
+  }
+  
+  state Teacher {
+    Teacher : Giảng viên
+    Teacher : Quyền hạn chế
+    
+    Teacher --> ViewingPersonalInfo : Xem thông tin cá nhân
+    Teacher --> ViewingPersonalHistory : Xem lịch sử lương
+    
+    ViewingPersonalInfo --> Teacher
+    ViewingPersonalHistory --> Teacher
+  }
+}
+
+Visitor --> Authenticated : login(username, password)
+Authenticated --> Admin : [role == "admin"]
+Authenticated --> Teacher : [role == "teacher"]
+
+Authenticated --> Visitor : logout()
+Admin --> Visitor : logout() / session timeout
+Teacher --> Visitor : logout() / session timeout
+
+note right of Authenticated
+  Xác thực qua localStorage
+  isLoggedIn = "true"
+end note
+
+@enduml

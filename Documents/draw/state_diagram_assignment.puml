@@ -1,0 +1,68 @@
+@startuml State_Diagram_Assignment
+!theme plain
+
+title Biểu đồ Trạng thái - Phân công Giảng dạy
+
+[*] --> Created : Tạo phân công
+
+state Created {
+  Created : Phân công mới được tạo
+  Created : Chưa xác nhận
+  Created : teacherId, classId, hours
+}
+
+state Confirmed {
+  Confirmed : Đã xác nhận phân công
+  Confirmed : Sẵn sàng tính lương
+}
+
+state InProgress {
+  InProgress : Đang giảng dạy
+  InProgress : Trong kì học hiện tại
+}
+
+state Completed {
+  Completed : Hoàn thành giảng dạy
+  Completed : Kết thúc kì học
+  
+  state Calculated {
+    Calculated : Đã tính lương
+    Calculated : Có record trong TeachingHistory
+  }
+}
+
+state Cancelled {
+  Cancelled : Hủy phân công
+  Cancelled : Không tính lương
+}
+
+Created --> Confirmed : approve()
+Created --> Cancelled : cancel()
+
+Confirmed --> InProgress : semesterStart()
+Confirmed --> Cancelled : cancel()
+
+InProgress --> Completed : semesterEnd()
+InProgress --> Cancelled : cancel() / emergencyStop()
+
+Completed --> Calculated : calculateSalary()
+
+Cancelled --> [*]
+Calculated --> [*]
+
+note right of Confirmed
+  Điều kiện xác nhận:
+  - Teacher exists
+  - Class exists  
+  - Hours > 0
+  - No conflict with other assignments
+end note
+
+note right of Calculated
+  Khi đã tính lương:
+  - Không thể sửa đổi assignment
+  - Có thể xem trong history
+  - Có thể tính lại nếu cần
+end note
+
+@enduml

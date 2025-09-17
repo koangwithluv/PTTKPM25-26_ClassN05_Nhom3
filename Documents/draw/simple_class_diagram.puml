@@ -1,0 +1,56 @@
+@startuml Simple_Class_Diagram
+!theme plain
+
+title Sơ đồ Lớp Đơn giản - Entities Chính
+
+class Teacher {
+  +id: number
+  +name: string
+  +email: string
+  +departmentId: number
+  +degreeId: number
+}
+
+class Assignment {
+  +id: number  
+  +teacherId: number
+  +classId: number
+  +hours: number
+}
+
+class Class {
+  +id: number
+  +name: string
+  +courseId: number
+  +studentCount: number
+}
+
+class SalaryConfig {
+  +ratePerHour: number
+  +degreeCoefficient: number
+  +classCoefficient: number
+}
+
+class TeachingHistory {
+  +id: number
+  +teacherId: number
+  +totalAmount: number
+  +calculatedAt: Date
+}
+
+class SalaryCalculator {
+  +calculate(assignment: Assignment): number
+}
+
+Teacher ||--o{ Assignment : teaches
+Assignment }o--|| Class : for
+SalaryCalculator ..> Assignment : calculates
+SalaryCalculator ..> SalaryConfig : uses
+SalaryCalculator ..> TeachingHistory : creates
+
+note right of SalaryCalculator
+  Formula: 
+  Amount = Hours × Rate × DegreeCoeff × ClassCoeff
+end note
+
+@enduml

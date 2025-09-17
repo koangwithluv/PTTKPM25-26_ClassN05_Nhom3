@@ -1,0 +1,254 @@
+@startuml sequence_diagram_salary_calculation
+!theme blueprint
+title Biểu đồ Trình tự - Quy trình Tính Lương Giảng viên
+
+actor Admin as "Admin\n(Quản trị viên)"
+participant SalaryPage as "Salary Calculation\nPage (React)"
+participant CalculateAPI as "Calculate API\n(/api/tinh-tien-day/calculate)"
+participant AssignmentAPI as "Assignment API\n(/api/assignments)"
+participant RateAPI as "Rate API\n(/api/tinh-tien-day/rate)"
+participant DegreeAPI as "Degree Coeff API\n(/api/tinh-tien-day/degree-coeff)"
+participant ClassAPI as "Class Coeff API\n(/api/tinh-tien-day/class-coeff)"
+participant HistoryAPI as "History API\n(/api/tinh-tien-day/history)"
+participant Database as "MySQL Database"
+participant CalculationEngine as "Salary Calculation\nEngine"
+
+== Khởi tạo trang tính lương ==
+Admin -> SalaryPage : Truy cập trang tính tiền dạy
+activate SalaryPage
+
+par Lấy danh sách assignments chưa tính lương
+    SalaryPage -> AssignmentAPI : GET /api/assignments?status=Completed
+    activate AssignmentAPI
+    AssignmentAPI -> Database : SELECT a.*, t.name, c.name\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.status = 'Completed'
+    activate Database
+    Database --> AssignmentAPI : Completed assignments
+    deactivate Database
+    AssignmentAPI --> SalaryPage : Available assignments
+    deactivate AssignmentAPI
+and Lấy cấu hình hiện tại
+    SalaryPage -> RateAPI : GET /api/tinh-tien-day/rate
+    activate RateAPI
+    RateAPI -> Database : SELECT * FROM rates WHERE is_active = 1
+    activate Database
+    Database --> RateAPI : Current rate
+    deactivate Database
+    RateAPI --> SalaryPage : Rate config
+    deactivate RateAPI
+end
+
+SalaryPage --> Admin : Hiển thị giao diện tính lương
+deactivate SalaryPage
+
+== Tính lương cho assignment cụ thể ==
+Admin -> SalaryPage : Chọn assignment và nhấn "Tính lương"
+activate SalaryPage
+
+SalaryPage -> CalculateAPI : POST /api/tinh-tien-day/calculate\n{assignment_id}
+activate CalculateAPI
+
+CalculateAPI -> CalculationEngine : initiate calculation
+activate CalculationEngine
+
+== Giai đoạn 1: Thu thập dữ liệu ==
+CalculationEngine -> AssignmentAPI : GET assignment details
+activate AssignmentAPI
+AssignmentAPI -> Database : SELECT a.*, t.degree_id, c.credits\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.id = ?
+activate Database
+Database --> AssignmentAPI : Assignment with teacher and class info
+deactivate Database
+AssignmentAPI --> CalculationEngine : Assignment data\n{id, hours, teacher_id, class_id, degree_id, credits}
+deactivate AssignmentAPI
+
+par Lấy định mức giờ dạy
+    CalculationEngine -> RateAPI : GET current rate
+    activate RateAPI
+    RateAPI -> Database : SELECT value FROM rates WHERE is_active = 1
+    activate Database
+    Database --> RateAPI : Rate value (e.g., 150000 VND/hour)
+    deactivate Database
+    RateAPI --> CalculationEngine : Current rate
+    deactivate RateAPI
+and Lấy hệ số bằng cấp
+    CalculationEngine -> DegreeAPI : GET degree coefficient
+    activate DegreeAPI
+    DegreeAPI -> Database : SELECT coefficient FROM degree_coefficients\nWHERE degree_id = ? AND is_active = 1
+    activate Database
+    Database --> DegreeAPI : Degree coefficient (e.g., 1.2 for Master)
+    deactivate Database
+    DegreeAPI --> CalculationEngine : Degree coefficient
+    deactivate DegreeAPI
+and Lấy hệ số lớp học
+    CalculationEngine -> ClassAPI : GET class coefficient
+    activate ClassAPI
+    ClassAPI -> Database : SELECT coefficient FROM class_coefficients\nWHERE credits = ? AND is_active = 1
+    activate Database
+    Database --> ClassAPI : Class coefficient (e.g., 1.1 for 3 credits)
+    deactivate Database
+    ClassAPI --> CalculationEngine : Class coefficient
+    deactivate ClassAPI
+end
+
+== Giai đoạn 2: Validation dữ liệu ==
+CalculationEngine -> CalculationEngine : Validate all required data
+
+alt Tất cả dữ liệu hợp lệ
+    note right of CalculationEngine
+        Validation checks:
+        - Assignment status = "Completed"
+        - Hours > 0
+        - Rate > 0
+        - All coefficients > 0
+        - Teacher and Class exist
+    end note
+    
+    == Giai đoạn 3: Thực hiện tính toán ==
+    CalculationEngine -> CalculationEngine : Calculate salary
+    note right of CalculationEngine
+        Formula:
+        totalAmount = hours × rate × degreeCoeff × classCoeff
+        
+        Example:
+        hours = 45
+        rate = 150,000 VND
+        degreeCoeff = 1.2 (Master degree)
+        classCoeff = 1.1 (3 credits)
+        
+        totalAmount = 45 × 150,000 × 1.2 × 1.1
+                    = 8,910,000 VND
+    end note
+    
+    == Giai đoạn 4: Lưu kết quả ==
+    CalculationEngine -> Database : BEGIN TRANSACTION
+    activate Database
+    
+    CalculationEngine -> Database : INSERT INTO salary_history\n(assignment_id, teacher_id, hours, rate, degree_coeff,\nclass_coeff, total_amount, calculation_date)
+    Database --> CalculationEngine : History record created
+    
+    CalculationEngine -> Database : UPDATE assignments\nSET status = 'Calculated'\nWHERE id = ?
+    Database --> CalculationEngine : Assignment status updated
+    
+    CalculationEngine -> Database : COMMIT TRANSACTION
+    Database --> CalculationEngine : Transaction completed
+    deactivate Database
+    
+    CalculationEngine --> CalculateAPI : Calculation successful\n{total_amount, details}
+    deactivate CalculationEngine
+    
+    CalculateAPI --> SalaryPage : 200 OK\n{success: true, result: {...}}
+    deactivate CalculateAPI
+    
+    SalaryPage -> SalaryPage : Cập nhật UI với kết quả
+    SalaryPage --> Admin : Hiển thị kết quả tính lương
+    
+else Dữ liệu không hợp lệ
+    CalculationEngine --> CalculateAPI : Validation error\n{error: "Missing required data"}
+    deactivate CalculationEngine
+    
+    CalculateAPI --> SalaryPage : 400 Bad Request\n{error: details}
+    deactivate CalculateAPI
+    
+    SalaryPage --> Admin : Hiển thị thông báo lỗi
+end
+
+deactivate SalaryPage
+
+== Xem lịch sử tính lương ==
+Admin -> SalaryPage : Nhấn tab "Lịch sử"
+activate SalaryPage
+
+SalaryPage -> HistoryAPI : GET /api/tinh-tien-day/history
+activate HistoryAPI
+
+HistoryAPI -> Database : SELECT sh.*, t.name as teacher_name,\nc.name as class_name\nFROM salary_history sh\nJOIN assignments a ON sh.assignment_id = a.id\nJOIN teachers t ON sh.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nORDER BY sh.calculation_date DESC
+activate Database
+Database --> HistoryAPI : Salary calculation history
+deactivate Database
+
+HistoryAPI --> SalaryPage : History records
+deactivate HistoryAPI
+
+SalaryPage --> Admin : Hiển thị lịch sử tính lương
+deactivate SalaryPage
+
+== Tính lương hàng loạt ==
+Admin -> SalaryPage : Chọn nhiều assignments và nhấn "Tính lương hàng loạt"
+activate SalaryPage
+
+SalaryPage -> CalculateAPI : POST /api/tinh-tien-day/calculate/batch\n{assignment_ids: [1,2,3]}
+activate CalculateAPI
+
+CalculateAPI -> CalculationEngine : initiate batch calculation
+activate CalculationEngine
+
+loop Cho từng assignment
+    CalculationEngine -> CalculationEngine : Calculate individual salary
+    note right
+        Repeat the same process as single calculation
+        for each assignment in the batch
+    end note
+end
+
+CalculationEngine -> Database : BEGIN BATCH TRANSACTION
+activate Database
+
+CalculationEngine -> Database : Batch INSERT INTO salary_history
+CalculationEngine -> Database : Batch UPDATE assignments status
+
+alt Tất cả thành công
+    CalculationEngine -> Database : COMMIT TRANSACTION
+    Database --> CalculationEngine : Batch operation completed
+    deactivate Database
+    
+    CalculationEngine --> CalculateAPI : Batch calculation successful\n{processed: 3, failed: 0}
+    deactivate CalculationEngine
+    
+    CalculateAPI --> SalaryPage : 200 OK\n{success: true, summary: {...}}
+    deactivate CalculateAPI
+    
+    SalaryPage --> Admin : Hiển thị tổng kết batch operation
+    
+else Có lỗi xảy ra
+    CalculationEngine -> Database : ROLLBACK TRANSACTION
+    Database --> CalculationEngine : Transaction rolled back
+    deactivate Database
+    
+    CalculationEngine --> CalculateAPI : Batch calculation failed\n{processed: 1, failed: 2, errors: [...]}
+    deactivate CalculationEngine
+    
+    CalculateAPI --> SalaryPage : 500 Internal Server Error\n{errors: [...]}
+    deactivate CalculateAPI
+    
+    SalaryPage --> Admin : Hiển thị danh sách lỗi
+end
+
+deactivate SalaryPage
+
+note right of Database
+    Bảng salary_history:
+    - id (Primary Key)
+    - assignment_id (Foreign Key)
+    - teacher_id (Foreign Key)
+    - hours (INT - số giờ dạy)
+    - rate (DECIMAL - đơn giá/giờ)
+    - degree_coefficient (DECIMAL)
+    - class_coefficient (DECIMAL)
+    - total_amount (DECIMAL - tổng tiền)
+    - calculation_date (TIMESTAMP)
+    - calculated_by (user_id)
+    
+    Index: (teacher_id, calculation_date)
+    Index: (assignment_id) UNIQUE
+end note
+
+note right of CalculationEngine
+    Business Rules:
+    1. Chỉ tính lương cho assignments "Completed"
+    2. Mỗi assignment chỉ được tính lương 1 lần
+    3. Sử dụng rate và coefficients hiện tại
+    4. Tất cả operations phải atomic (transaction)
+    5. Lưu đầy đủ audit trail trong history
+    6. Validate toàn bộ input trước khi tính
+end note
+
+@enduml

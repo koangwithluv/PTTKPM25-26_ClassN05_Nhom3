@@ -1,0 +1,326 @@
+@startuml sequence_diagram_system_configuration
+!theme blueprint
+title Biểu đồ Trình tự - Cấu hình Hệ thống (Rates & Coefficients)
+
+actor Admin as "Admin\n(Quản trị viên)"
+participant ConfigPage as "Configuration Page\n(React Component)"
+participant RateAPI as "Rate API\n(/api/tinh-tien-day/rate)"
+participant DegreeAPI as "Degree Coeff API\n(/api/tinh-tien-day/degree-coeff)"
+participant ClassAPI as "Class Coeff API\n(/api/tinh-tien-day/class-coeff)"
+participant ValidationLayer as "Configuration\nValidation"
+participant Database as "MySQL Database"
+participant AuditLogger as "Audit Log\nSystem"
+
+== Khởi tạo trang cấu hình ==
+Admin -> ConfigPage : Truy cập trang cấu hình
+activate ConfigPage
+
+par Lấy cấu hình định mức giờ dạy
+    ConfigPage -> RateAPI : GET /api/tinh-tien-day/rate
+    activate RateAPI
+    RateAPI -> Database : SELECT * FROM rates ORDER BY created_at DESC
+    activate Database
+    Database --> RateAPI : Current and historical rates
+    deactivate Database
+    RateAPI --> ConfigPage : Rate configurations
+    deactivate RateAPI
+and Lấy hệ số bằng cấp
+    ConfigPage -> DegreeAPI : GET /api/tinh-tien-day/degree-coeff
+    activate DegreeAPI
+    DegreeAPI -> Database : SELECT dc.*, d.name as degree_name\nFROM degree_coefficients dc\nJOIN degrees d ON dc.degree_id = d.id\nORDER BY dc.created_at DESC
+    activate Database
+    Database --> DegreeAPI : Degree coefficients with degree names
+    deactivate Database
+    DegreeAPI --> ConfigPage : Degree coefficient configurations
+    deactivate DegreeAPI
+and Lấy hệ số lớp học
+    ConfigPage -> ClassAPI : GET /api/tinh-tien-day/class-coeff
+    activate ClassAPI
+    ClassAPI -> Database : SELECT * FROM class_coefficients\nORDER BY credits ASC
+    activate Database
+    Database --> ClassAPI : Class coefficients by credits
+    deactivate Database
+    ClassAPI --> ConfigPage : Class coefficient configurations
+    deactivate ClassAPI
+end
+
+ConfigPage --> Admin : Hiển thị giao diện cấu hình
+deactivate ConfigPage
+
+== Cập nhật định mức giờ dạy ==
+Admin -> ConfigPage : Nhấn "Cập nhật định mức"
+activate ConfigPage
+
+ConfigPage --> Admin : Hiển thị form cập nhật rate
+
+Admin -> ConfigPage : Nhập giá trị mới\n{value: 160000, description: "Tăng 10k từ 2025"}
+
+ConfigPage -> ValidationLayer : Validate rate value
+activate ValidationLayer
+
+alt Giá trị hợp lệ (> 0, reasonable range)
+    ValidationLayer --> ConfigPage : Validation passed
+    deactivate ValidationLayer
+    
+    ConfigPage -> RateAPI : POST /api/tinh-tien-day/rate\n{value, description}
+    activate RateAPI
+    
+    RateAPI -> ValidationLayer : Server-side validation
+    activate ValidationLayer
+    ValidationLayer --> RateAPI : Data validated
+    deactivate ValidationLayer
+    
+    RateAPI -> Database : BEGIN TRANSACTION
+    activate Database
+    
+    RateAPI -> Database : UPDATE rates SET is_active = 0\nWHERE is_active = 1
+    Database --> RateAPI : Previous rates deactivated
+    
+    RateAPI -> Database : INSERT INTO rates\n(value, description, is_active, created_by)
+    Database --> RateAPI : New rate inserted
+    
+    RateAPI -> AuditLogger : Log configuration change
+    activate AuditLogger
+    AuditLogger -> Database : INSERT INTO audit_logs\n(action, table_name, old_value, new_value, user_id)
+    Database --> AuditLogger : Audit log recorded
+    deactivate AuditLogger
+    
+    RateAPI -> Database : COMMIT TRANSACTION
+    Database --> RateAPI : Transaction completed
+    deactivate Database
+    
+    RateAPI --> ConfigPage : 201 Created\n{success: true, new_rate: {...}}
+    deactivate RateAPI
+    
+    ConfigPage -> ConfigPage : Cập nhật UI với rate mới
+    ConfigPage --> Admin : Hiển thị thông báo thành công
+    
+else Giá trị không hợp lệ
+    ValidationLayer --> ConfigPage : Validation error\n{error: "Rate phải > 0"}
+    deactivate ValidationLayer
+    
+    ConfigPage --> Admin : Hiển thị thông báo lỗi
+end
+
+deactivate ConfigPage
+
+== Cập nhật hệ số bằng cấp ==
+Admin -> ConfigPage : Chọn tab "Hệ số bằng cấp"
+activate ConfigPage
+
+Admin -> ConfigPage : Nhấn "Sửa" hệ số cho Thạc sĩ
+
+ConfigPage -> DegreeAPI : GET /api/tinh-tien-day/degree-coeff/{degree_id}
+activate DegreeAPI
+
+DegreeAPI -> Database : SELECT * FROM degree_coefficients\nWHERE degree_id = ? AND is_active = 1
+activate Database
+Database --> DegreeAPI : Current coefficient for degree
+deactivate Database
+
+DegreeAPI --> ConfigPage : Current coefficient data
+deactivate DegreeAPI
+
+ConfigPage --> Admin : Hiển thị form với giá trị hiện tại
+
+Admin -> ConfigPage : Cập nhật hệ số\n{coefficient: 1.3, reason: "Điều chỉnh theo quyết định mới"}
+
+ConfigPage -> ValidationLayer : Validate coefficient
+activate ValidationLayer
+
+alt Hệ số hợp lệ (0.1 - 5.0)
+    ValidationLayer --> ConfigPage : Validation passed
+    deactivate ValidationLayer
+    
+    ConfigPage -> DegreeAPI : PUT /api/tinh-tien-day/degree-coeff/{degree_id}\n{coefficient, reason}
+    activate DegreeAPI
+    
+    DegreeAPI -> Database : BEGIN TRANSACTION
+    activate Database
+    
+    DegreeAPI -> Database : UPDATE degree_coefficients\nSET is_active = 0\nWHERE degree_id = ? AND is_active = 1
+    Database --> DegreeAPI : Old coefficient deactivated
+    
+    DegreeAPI -> Database : INSERT INTO degree_coefficients\n(degree_id, coefficient, reason, is_active)
+    Database --> DegreeAPI : New coefficient inserted
+    
+    DegreeAPI -> AuditLogger : Log coefficient change
+    activate AuditLogger
+    AuditLogger -> Database : Record audit trail
+    Database --> AuditLogger : Logged
+    deactivate AuditLogger
+    
+    DegreeAPI -> Database : COMMIT TRANSACTION
+    Database --> DegreeAPI : Transaction successful
+    deactivate Database
+    
+    DegreeAPI --> ConfigPage : 200 OK\n{success: true}
+    deactivate DegreeAPI
+    
+    ConfigPage --> Admin : Thông báo cập nhật thành công
+    
+else Hệ số không hợp lệ
+    ValidationLayer --> ConfigPage : Validation error
+    deactivate ValidationLayer
+    
+    ConfigPage --> Admin : Hiển thị lỗi validation
+end
+
+deactivate ConfigPage
+
+== Cập nhật hệ số lớp học ==
+Admin -> ConfigPage : Chọn tab "Hệ số lớp học"
+activate ConfigPage
+
+Admin -> ConfigPage : Nhấn "Thêm hệ số mới"
+
+ConfigPage --> Admin : Hiển thị form thêm mới
+
+Admin -> ConfigPage : Nhập thông tin\n{credits: 4, coefficient: 1.15, description: "Lớp 4 tín chỉ"}
+
+ConfigPage -> ValidationLayer : Validate class coefficient
+activate ValidationLayer
+
+alt Validation thành công
+    ValidationLayer -> Database : Kiểm tra trùng lặp credits
+    activate Database
+    Database --> ValidationLayer : No duplicate found
+    deactivate Database
+    
+    ValidationLayer --> ConfigPage : Data valid
+    deactivate ValidationLayer
+    
+    ConfigPage -> ClassAPI : POST /api/tinh-tien-day/class-coeff\n{credits, coefficient, description}
+    activate ClassAPI
+    
+    ClassAPI -> Database : INSERT INTO class_coefficients\n(credits, coefficient, description, is_active)
+    activate Database
+    Database --> ClassAPI : New class coefficient created
+    deactivate Database
+    
+    ClassAPI -> AuditLogger : Log new coefficient
+    activate AuditLogger
+    AuditLogger -> Database : Record creation
+    Database --> AuditLogger : Logged
+    deactivate AuditLogger
+    
+    ClassAPI --> ConfigPage : 201 Created\n{success: true}
+    deactivate ClassAPI
+    
+    ConfigPage --> Admin : Thông báo tạo thành công
+    
+else Validation thất bại hoặc trùng lặp
+    ValidationLayer --> ConfigPage : Error\n{error: "Credits đã tồn tại"}
+    deactivate ValidationLayer
+    
+    ConfigPage --> Admin : Hiển thị thông báo lỗi
+end
+
+deactivate ConfigPage
+
+== Kiểm tra tác động của thay đổi cấu hình ==
+Admin -> ConfigPage : Nhấn "Xem tác động" sau khi thay đổi
+activate ConfigPage
+
+ConfigPage -> RateAPI : GET /api/tinh-tien-day/rate/impact-analysis
+activate RateAPI
+
+RateAPI -> Database : SELECT COUNT(*) FROM assignments\nWHERE status = 'Completed'\nAND id NOT IN (SELECT assignment_id FROM salary_history)
+activate Database
+Database --> RateAPI : Number of assignments affected
+deactivate Database
+
+RateAPI -> Database : SELECT AVG(hours) FROM assignments\nWHERE status = 'Completed'
+activate Database
+Database --> RateAPI : Average hours per assignment
+deactivate Database
+
+RateAPI --> ConfigPage : Impact analysis\n{affected_assignments: 25, estimated_diff: "8.5M VND"}
+deactivate RateAPI
+
+ConfigPage --> Admin : Hiển thị báo cáo tác động
+deactivate ConfigPage
+
+== Xuất báo cáo cấu hình ==
+Admin -> ConfigPage : Nhấn "Xuất báo cáo cấu hình"
+activate ConfigPage
+
+ConfigPage -> ConfigPage : Tạo báo cáo tổng hợp
+
+par Lấy lịch sử rates
+    ConfigPage -> RateAPI : GET /api/tinh-tien-day/rate/history
+    activate RateAPI
+    RateAPI -> Database : SELECT * FROM rates ORDER BY created_at DESC LIMIT 10
+    activate Database
+    Database --> RateAPI : Recent rate changes
+    deactivate Database
+    RateAPI --> ConfigPage : Rate history
+    deactivate RateAPI
+and Lấy lịch sử degree coefficients
+    ConfigPage -> DegreeAPI : GET /api/tinh-tien-day/degree-coeff/history
+    activate DegreeAPI
+    DegreeAPI -> Database : SELECT * FROM degree_coefficients\nORDER BY created_at DESC LIMIT 20
+    activate Database
+    Database --> DegreeAPI : Recent degree coefficient changes
+    deactivate Database
+    DegreeAPI --> ConfigPage : Degree coefficient history
+    deactivate DegreeAPI
+and Lấy audit logs
+    ConfigPage -> AuditLogger : GET configuration audit logs
+    activate AuditLogger
+    AuditLogger -> Database : SELECT * FROM audit_logs\nWHERE table_name IN ('rates', 'degree_coefficients', 'class_coefficients')\nORDER BY created_at DESC
+    activate Database
+    Database --> AuditLogger : Configuration change logs
+    deactivate Database
+    AuditLogger --> ConfigPage : Audit trail
+    deactivate AuditLogger
+end
+
+ConfigPage -> ConfigPage : Generate report file (PDF/Excel)
+
+ConfigPage --> Admin : Tải xuống báo cáo cấu hình
+deactivate ConfigPage
+
+note right of ValidationLayer
+    Configuration Validation Rules:
+    
+    Rate:
+    - Value > 0 và <= 1,000,000 VND
+    - Reasonable change (not >50% increase at once)
+    
+    Degree Coefficient:
+    - 0.5 <= coefficient <= 3.0
+    - Must have valid reason for change
+    
+    Class Coefficient:
+    - 0.8 <= coefficient <= 2.0
+    - Credits must be 1-8
+    - No duplicate credits allowed
+    
+    Business Rules:
+    - Chỉ có thể có 1 active config per type
+    - Phải có audit trail cho mọi thay đổi
+    - Impact analysis trước khi apply
+end note
+
+note right of Database
+    Configuration Tables:
+    
+    rates:
+    - id, value, description, is_active
+    - created_by, created_at
+    
+    degree_coefficients:
+    - id, degree_id, coefficient, reason
+    - is_active, created_at
+    
+    class_coefficients:
+    - id, credits, coefficient, description
+    - is_active, created_at
+    
+    audit_logs:
+    - id, table_name, action, old_value
+    - new_value, user_id, timestamp
+end note
+
+@enduml

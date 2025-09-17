@@ -1,0 +1,82 @@
+@startuml State_Diagram_Complete_System
+!theme plain
+
+title Biểu đồ Trạng thái Tổng quan - Hệ thống Tính Lương
+
+[*] --> SystemStartup : Khởi động hệ thống
+
+state SystemStartup {
+  SystemStartup : Khởi tạo database
+  SystemStartup : Load cấu hình
+  SystemStartup : Check connectivity
+}
+
+state SystemReady {
+  SystemReady : Hệ thống sẵn sàng
+  
+  state UserManagement {
+    UserManagement : Quản lý user
+    state LoginProcess
+    state SessionManagement
+  }
+  
+  state DataManagement {
+    DataManagement : Quản lý dữ liệu
+    state TeacherCRUD
+    state ClassCRUD
+    state AssignmentCRUD
+  }
+  
+  state SalaryProcessing {
+    SalaryProcessing : Xử lý lương
+    state ConfigManagement
+    state Calculation
+    state HistoryTracking
+  }
+}
+
+state SystemMaintenance {
+  SystemMaintenance : Bảo trì hệ thống
+  SystemMaintenance : Backup, Update, Clean
+}
+
+state SystemError {
+  SystemError : Lỗi hệ thống
+  SystemError : Database down, Config error
+}
+
+SystemStartup --> SystemReady : [startup success]
+SystemStartup --> SystemError : [startup failed]
+
+SystemReady --> UserManagement : userAction()
+SystemReady --> DataManagement : dataAction()
+SystemReady --> SalaryProcessing : salaryAction()
+
+UserManagement --> SystemReady
+DataManagement --> SystemReady  
+SalaryProcessing --> SystemReady
+
+SystemReady --> SystemMaintenance : maintenance()
+SystemMaintenance --> SystemReady : maintenanceComplete()
+
+SystemReady --> SystemError : criticalError()
+SystemError --> SystemStartup : restart()
+SystemError --> [*] : shutdown()
+
+note right of SystemReady
+  Hệ thống sẵn sàng khi:
+  - Database connected
+  - Basic config loaded
+  - Authentication ready
+  - All APIs responding
+end note
+
+note bottom of SystemError
+  Lỗi nghiêm trọng:
+  - Database connection lost
+  - Configuration corrupted
+  - Authentication failure
+  - Critical API errors
+end note
+
+@enduml

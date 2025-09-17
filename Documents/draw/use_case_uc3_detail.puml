@@ -1,0 +1,98 @@
+@startuml Use_Case_UC3_Detail
+!theme aws-orange
+
+title UC3: Sơ đồ Use Case Chi tiết - Tính Tiền Dạy
+
+left to right direction
+
+actor "Quản trị viên" as Admin
+actor "Giảng viên" as Teacher
+
+rectangle "UC3: Hệ thống Tính Tiền Dạy" {
+  
+  package "Quản lý cấu hình" {
+    usecase "Thiết lập định mức tiền/tiết" as Config_Rate
+    usecase "Cập nhật hệ số theo bằng cấp" as Config_Degree
+    usecase "Cập nhật hệ số theo lớp" as Config_Class
+    usecase "Xem danh sách cấu hình" as View_Config
+  }
+  
+  package "Tính toán lương" {
+    usecase "Tính tiền dạy theo kì" as Calculate_Salary
+    usecase "Tính tiền dạy theo giảng viên" as Calculate_Teacher
+    usecase "Tính tiền dạy theo lớp" as Calculate_Class
+    usecase "Xuất báo cáo lương" as Export_Report
+  }
+  
+  package "Lịch sử và thống kê" {
+    usecase "Xem lịch sử tính tiền dạy" as View_History
+    usecase "Tìm kiếm lịch sử" as Search_History
+    usecase "Xóa lịch sử" as Delete_History
+    usecase "Thống kê theo thời gian" as Statistics_Time
+  }
+  
+  package "Dữ liệu đầu vào" {
+    usecase "Lấy thông tin phân công" as Get_Assignment
+    usecase "Lấy thông tin giảng viên" as Get_Teacher
+    usecase "Lấy thông tin lớp học" as Get_Class
+    usecase "Lấy thông tin kì học" as Get_Semester
+  }
+}
+
+' Quan hệ với Quản trị viên
+Admin --> Config_Rate
+Admin --> Config_Degree
+Admin --> Config_Class
+Admin --> View_Config
+Admin --> Calculate_Salary
+Admin --> Calculate_Teacher
+Admin --> Calculate_Class
+Admin --> Export_Report
+Admin --> View_History
+Admin --> Search_History
+Admin --> Delete_History
+Admin --> Statistics_Time
+
+' Quan hệ với Giảng viên
+Teacher --> View_History : (chỉ xem của mình)
+Teacher --> Search_History : (chỉ tìm của mình)
+
+' Quan hệ include
+Calculate_Salary ..> Get_Assignment : <<include>>
+Calculate_Salary ..> Get_Teacher : <<include>>
+Calculate_Salary ..> Get_Class : <<include>>
+Calculate_Salary ..> Get_Semester : <<include>>
+Calculate_Salary ..> Config_Rate : <<include>>
+Calculate_Salary ..> Config_Degree : <<include>>
+Calculate_Salary ..> Config_Class : <<include>>
+
+Calculate_Teacher ..> Calculate_Salary : <<include>>
+Calculate_Class ..> Calculate_Salary : <<include>>
+
+Export_Report ..> Calculate_Salary : <<include>>
+
+Search_History ..> View_History : <<extend>>
+Statistics_Time ..> View_History : <<extend>>
+
+note right of Calculate_Salary
+  Công thức tính:
+  Lương = Số tiết dạy × Định mức tiền/tiết 
+         × Hệ số giảng viên × Hệ số lớp
+end note
+
+note bottom of Get_Assignment
+  Lấy từ bảng Assignment:
+  - Giảng viên nào dạy lớp gì
+  - Số tiết dạy
+  - Kì học
+end note
+
+note bottom of Config_Rate
+  API Endpoints:
+  - GET /api/tinh-tien-day/rate
+  - POST /api/tinh-tien-day/rate
+  - PUT /api/tinh-tien-day/rate
+  - DELETE /api/tinh-tien-day/rate
+end note
+
+@enduml

@@ -1,0 +1,48 @@
+@startuml Use_Case_Simple
+!theme plain
+
+title Sơ đồ Use Case - Hệ thống Tính Lương Giảng Viên
+
+actor "Quản trị viên" as Admin
+actor "Giảng viên" as Teacher
+
+rectangle "Hệ thống Tính Lương Giảng Viên" {
+  
+  usecase "Đăng nhập" as Login
+  
+  package "Quản lý dữ liệu" {
+    usecase "Quản lý giảng viên" as ManageTeacher
+    usecase "Quản lý lớp học" as ManageClass
+    usecase "Phân công giảng dạy" as Assignment
+  }
+  
+  package "Tính lương" {
+    usecase "Cấu hình hệ số" as ConfigCoeff
+    usecase "Tính tiền dạy" as Calculate
+    usecase "Xem lịch sử" as ViewHistory
+  }
+}
+
+' Kết nối Admin
+Admin --> Login
+Admin --> ManageTeacher
+Admin --> ManageClass
+Admin --> Assignment
+Admin --> ConfigCoeff
+Admin --> Calculate
+Admin --> ViewHistory
+
+' Kết nối Teacher
+Teacher --> Login
+Teacher --> ViewHistory : (chỉ xem của mình)
+
+' Quan hệ phụ thuộc
+Calculate ..> Assignment : <<include>>
+Calculate ..> ConfigCoeff : <<include>>
+
+note right of Calculate
+  Công thức:
+  Lương = Số tiết × Định mức × Hệ số
+end note
+
+@enduml

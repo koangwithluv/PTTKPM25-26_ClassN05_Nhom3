@@ -1,0 +1,136 @@
+@startuml sequence_diagram_login
+!theme blueprint
+title Biểu đồ Trình tự - Quy trình Đăng nhập
+
+actor User as "Người dùng"
+participant LoginPage as "Login Page\n(React Component)"
+participant AuthGuard as "AuthGuard\n(Authentication Guard)"
+participant LoginAPI as "Login API\n(/api/login/route.ts)"
+participant Database as "MySQL Database\n(tinh_luong_giang_vien)"
+participant LocalStorage as "Browser\nLocalStorage"
+participant Router as "Next.js Router"
+
+== Khởi tạo truy cập ==
+User -> LoginPage : Truy cập trang login
+activate LoginPage
+
+LoginPage -> AuthGuard : Kiểm tra trạng thái đăng nhập
+activate AuthGuard
+
+AuthGuard -> LocalStorage : getItem("isLoggedIn")
+activate LocalStorage
+LocalStorage --> AuthGuard : null/false
+deactivate LocalStorage
+
+AuthGuard --> LoginPage : Chưa đăng nhập
+deactivate AuthGuard
+
+LoginPage --> User : Hiển thị form đăng nhập
+deactivate LoginPage
+
+== Quá trình đăng nhập ==
+User -> LoginPage : Nhập username/password\n(admin/admin)
+activate LoginPage
+
+LoginPage -> LoginPage : Validate input\n(không được rỗng)
+
+alt Validation thành công
+    LoginPage -> LoginAPI : POST /api/login\n{username, password}
+    activate LoginAPI
+    
+    LoginAPI -> Database : SELECT * FROM users\nWHERE username = ? AND password = ?
+    activate Database
+    
+    alt Thông tin đăng nhập đúng
+        Database --> LoginAPI : User record found\n{id, username, role}
+        deactivate Database
+        
+        LoginAPI --> LoginPage : 200 OK\n{success: true, user: {role}}
+        deactivate LoginAPI
+        
+        LoginPage -> LocalStorage : setItem("isLoggedIn", "true")\nsetItem("userRole", role)
+        activate LocalStorage
+        LocalStorage --> LoginPage : Stored successfully
+        deactivate LocalStorage
+        
+        LoginPage -> Router : router.push("/quan-ly-giao-vien/bang-cap")
+        activate Router
+        Router --> LoginPage : Navigation initiated
+        deactivate Router
+        
+        LoginPage --> User : Chuyển hướng đến Dashboard
+        
+    else Thông tin đăng nhập sai
+        Database --> LoginAPI : No user found
+        deactivate Database
+        
+        LoginAPI --> LoginPage : 401 Unauthorized\n{success: false, message: "Invalid credentials"}
+        deactivate LoginAPI
+        
+        LoginPage --> User : Hiển thị thông báo lỗi
+    end
+    
+else Validation thất bại
+    LoginPage --> User : Hiển thị lỗi validation
+end
+
+deactivate LoginPage
+
+== Bảo vệ trang sau đăng nhập ==
+User -> AuthGuard : Truy cập trang được bảo vệ
+activate AuthGuard
+
+AuthGuard -> LocalStorage : getItem("isLoggedIn")
+activate LocalStorage
+LocalStorage --> AuthGuard : "true"
+deactivate LocalStorage
+
+AuthGuard -> AuthGuard : Kiểm tra role và permissions
+
+alt Có quyền truy cập
+    AuthGuard --> User : Cho phép truy cập trang
+else Không có quyền
+    AuthGuard -> Router : router.push("/login")
+    activate Router
+    Router --> AuthGuard : Redirect to login
+    deactivate Router
+    AuthGuard --> User : Chuyển về trang đăng nhập
+end
+
+deactivate AuthGuard
+
+== Đăng xuất ==
+User -> AuthGuard : Nhấn nút Logout
+activate AuthGuard
+
+AuthGuard -> LocalStorage : removeItem("isLoggedIn")\nremoveItem("userRole")
+activate LocalStorage
+LocalStorage --> AuthGuard : Items removed
+deactivate LocalStorage
+
+AuthGuard -> Router : router.push("/login")
+activate Router
+Router --> AuthGuard : Navigation to login
+deactivate Router
+
+AuthGuard --> User : Chuyển về trang đăng nhập
+deactivate AuthGuard
+
+note right of Database
+    Database chứa bảng users với:
+    - id (Primary Key)
+    - username (admin)
+    - password (admin)
+    - role (Admin/Teacher)
+    - created_at, updated_at
+end note
+
+note right of LocalStorage
+    Lưu trữ trạng thái authentication:
+    - isLoggedIn: "true"/"false"
+    - userRole: "Admin"/"Teacher"
+    
+    Session-based, mất khi đóng browser
+end note
+
+@enduml

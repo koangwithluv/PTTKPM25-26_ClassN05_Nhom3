@@ -1,0 +1,254 @@
+@startuml sequence_diagram_assignment
+!theme blueprint
+title Biểu đồ Trình tự - Phân công Giảng dạy
+
+actor Admin as "Admin\n(Quản trị viên)"
+participant AssignmentPage as "Assignment Page\n(React Component)"
+participant AssignmentAPI as "Assignment API\n(/api/assignments/route.ts)"
+participant TeacherAPI as "Teacher API\n(/api/teachers/route.ts)"
+participant ClassAPI as "Class API\n(/api/classes/route.ts)"
+participant Database as "MySQL Database"
+participant ValidationLayer as "Business Logic\nValidation"
+
+== Khởi tạo trang phân công ==
+Admin -> AssignmentPage : Truy cập trang phân công
+activate AssignmentPage
+
+par Lấy danh sách giảng viên
+    AssignmentPage -> TeacherAPI : GET /api/teachers
+    activate TeacherAPI
+    TeacherAPI -> Database : SELECT id, name, degree_id FROM teachers
+    activate Database
+    Database --> TeacherAPI : List of teachers
+    deactivate Database
+    TeacherAPI --> AssignmentPage : Teachers data
+    deactivate TeacherAPI
+and Lấy danh sách lớp học phần
+    AssignmentPage -> ClassAPI : GET /api/classes
+    activate ClassAPI
+    ClassAPI -> Database : SELECT id, name, credits, semester_id FROM classes
+    activate Database
+    Database --> ClassAPI : List of classes
+    deactivate Database
+    ClassAPI --> AssignmentPage : Classes data
+    deactivate ClassAPI
+end
+
+AssignmentPage -> AssignmentAPI : GET /api/assignments
+activate AssignmentAPI
+
+AssignmentAPI -> Database : SELECT a.*, t.name as teacher_name, c.name as class_name FROM assignments a JOIN teachers t ON a.teacher_id = t.id JOIN classes c ON a.class_id = c.id
+activate Database
+Database --> AssignmentAPI : Existing assignments
+deactivate Database
+
+AssignmentAPI --> AssignmentPage : Current assignments
+deactivate AssignmentAPI
+
+AssignmentPage --> Admin : Hiển thị giao diện phân công
+deactivate AssignmentPage
+
+== Tạo phân công mới ==
+Admin -> AssignmentPage : Nhấn "Tạo phân công mới"
+activate AssignmentPage
+
+AssignmentPage --> Admin : Hiển thị form tạo phân công
+
+Admin -> AssignmentPage : Chọn giảng viên và lớp {teacher_id, class_id, hours}
+
+AssignmentPage -> ValidationLayer : Validate business rules
+activate ValidationLayer
+
+ValidationLayer -> Database : Kiểm tra xung đột thời gian
+activate Database
+Database --> ValidationLayer : Conflict check result
+deactivate Database
+
+ValidationLayer -> Database : Kiểm tra giới hạn giờ dạy
+activate Database
+Database --> ValidationLayer : Hours limit check
+deactivate Database
+
+alt Validation thành công
+    ValidationLayer --> AssignmentPage : Business rules OK
+    deactivate ValidationLayer
+    
+    AssignmentPage -> AssignmentAPI : POST /api/assignments {teacher_id, class_id, hours}
+    activate AssignmentAPI
+    
+    AssignmentAPI -> ValidationLayer : Server-side validation
+    activate ValidationLayer
+    
+    ValidationLayer -> Database : BEGIN TRANSACTION
+    activate Database
+    
+    ValidationLayer -> Database : SELECT COUNT(*) FROM assignments WHERE teacher_id = ? AND class_id = ?
+    Database --> ValidationLayer : Duplicate check (0 rows)
+    
+    ValidationLayer -> Database : SELECT SUM(hours) FROM assignments WHERE teacher_id = ? AND semester_id = ?
+    Database --> ValidationLayer : Current hours for teacher
+    
+    alt Thỏa mãn tất cả ràng buộc
+        ValidationLayer -> Database : INSERT INTO assignments (teacher_id, class_id, hours, status)
+        Database --> ValidationLayer : INSERT successful
+        
+        ValidationLayer -> Database : COMMIT TRANSACTION
+        Database --> ValidationLayer : Transaction committed
+        deactivate Database
+        
+        ValidationLayer --> AssignmentAPI : Assignment created successfully
+        deactivate ValidationLayer
+        
+        AssignmentAPI --> AssignmentPage : 201 Created {success: true, assignment: {...}}
+        deactivate AssignmentAPI
+        
+        AssignmentPage -> AssignmentPage : Cập nhật danh sách assignments
+        AssignmentPage --> Admin : Hiển thị thông báo thành công
+        
+    else Vi phạm ràng buộc
+        ValidationLayer -> Database : ROLLBACK TRANSACTION
+        Database --> ValidationLayer : Transaction rolled back
+        deactivate Database
+        
+        ValidationLayer --> AssignmentAPI : Constraint violation
+        deactivate ValidationLayer
+        
+        AssignmentAPI --> AssignmentPage : 400 Bad Request {error: "Vi phạm ràng buộc"}
+        deactivate AssignmentAPI
+        
+        AssignmentPage --> Admin : Hiển thị thông báo lỗi
+    end
+    
+else Business rules vi phạm
+    ValidationLayer --> AssignmentPage : Validation error {errors: [...]}
+    deactivate ValidationLayer
+    
+    AssignmentPage --> Admin : Hiển thị lỗi validation
+end
+
+deactivate AssignmentPage
+
+== Cập nhật phân công ==
+Admin -> AssignmentPage : Nhấn "Sửa" trên phân công
+activate AssignmentPage
+
+AssignmentPage -> AssignmentAPI : GET /api/assignments/{id}
+activate AssignmentAPI
+
+AssignmentAPI -> Database : SELECT * FROM assignments WHERE id = ?
+activate Database
+Database --> AssignmentAPI : Assignment details
+deactivate Database
+
+AssignmentAPI --> AssignmentPage : Assignment data
+deactivate AssignmentAPI
+
+AssignmentPage --> Admin : Hiển thị form sửa với dữ liệu hiện tại
+
+Admin -> AssignmentPage : Cập nhật thông tin {hours, status}
+
+AssignmentPage -> ValidationLayer : Validate changes
+activate ValidationLayer
+
+ValidationLayer -> Database : SELECT status FROM assignments WHERE id = ?
+activate Database
+Database --> ValidationLayer : Current status
+deactivate Database
+
+alt Cho phép cập nhật
+    ValidationLayer --> AssignmentPage : Update allowed
+    deactivate ValidationLayer
+    
+    AssignmentPage -> AssignmentAPI : PUT /api/assignments/{id} {updatedData}
+    activate AssignmentAPI
+    
+    AssignmentAPI -> Database : UPDATE assignments SET ... WHERE id = ?
+    activate Database
+    Database --> AssignmentAPI : Update successful
+    deactivate Database
+    
+    AssignmentAPI --> AssignmentPage : 200 OK {success: true}
+    deactivate AssignmentAPI
+    
+    AssignmentPage --> Admin : Thông báo cập nhật thành công
+    
+else Đã tính lương, không cho sửa
+    ValidationLayer --> AssignmentPage : Update not allowed {error: "Đã tính lương"}
+    deactivate ValidationLayer
+    
+    AssignmentPage --> Admin : Hiển thị thông báo lỗi
+end
+
+deactivate AssignmentPage
+
+== Xóa phân công ==
+Admin -> AssignmentPage : Nhấn "Xóa" phân công
+activate AssignmentPage
+
+AssignmentPage --> Admin : Dialog xác nhận xóa
+
+Admin -> AssignmentPage : Xác nhận xóa
+
+AssignmentPage -> AssignmentAPI : DELETE /api/assignments/{id}
+activate AssignmentAPI
+
+AssignmentAPI -> ValidationLayer : Kiểm tra trạng thái
+activate ValidationLayer
+
+ValidationLayer -> Database : SELECT status FROM assignments WHERE id = ?
+activate Database
+Database --> ValidationLayer : Assignment status
+deactivate Database
+
+alt Chưa tính lương
+    ValidationLayer --> AssignmentAPI : Delete allowed
+    deactivate ValidationLayer
+    
+    AssignmentAPI -> Database : DELETE FROM assignments WHERE id = ?
+    activate Database
+    Database --> AssignmentAPI : Delete successful
+    deactivate Database
+    
+    AssignmentAPI --> AssignmentPage : 200 OK {success: true}
+    deactivate AssignmentAPI
+    
+    AssignmentPage -> AssignmentPage : Loại bỏ khỏi danh sách
+    AssignmentPage --> Admin : Thông báo xóa thành công
+    
+else Đã tính lương
+    ValidationLayer --> AssignmentAPI : Delete not allowed
+    deactivate ValidationLayer
+    
+    AssignmentAPI --> AssignmentPage : 400 Bad Request {error: "Không thể xóa"}
+    deactivate AssignmentAPI
+    
+    AssignmentPage --> Admin : Hiển thị thông báo lỗi
+end
+
+deactivate AssignmentPage
+
+note right of ValidationLayer
+    Business Rules:
+    1. Một giảng viên không thể được phân công
+       nhiều hơn 1 lớp cùng thời gian
+    2. Tổng số giờ dạy/học kỳ không vượt quá 200h
+    3. Một lớp chỉ có thể có 1 giảng viên chính
+    4. Assignments đã "Calculated" không được sửa/xóa
+    5. Teacher và Class phải tồn tại và active
+end note
+
+note right of Database
+    Bảng assignments:
+    - id (Primary Key)
+    - teacher_id (Foreign Key → teachers.id)
+    - class_id (Foreign Key → classes.id) 
+    - hours (INT, số giờ giảng dạy)
+    - status (ENUM: Created, Confirmed, InProgress, Completed, Calculated)
+    - created_at, updated_at
+    
+    Constraints:
+    - UNIQUE(teacher_id, class_id) - Tránh duplicate
+    - CHECK(hours > 0 AND hours <= 200)
+end note
+
+@enduml

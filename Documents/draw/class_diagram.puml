@@ -1,0 +1,181 @@
+@startuml Class_Diagram_TinhLuongGiangVien
+!theme plain
+
+title Sơ đồ Lớp - Hệ thống Tính Lương Giảng Viên
+
+' Lớp cơ sở dữ liệu
+class Department {
+  -id: number
+  -name: string
+  -description: string
+  +getId(): number
+  +getName(): string
+  +setName(name: string): void
+}
+
+class Degree {
+  -id: number
+  -fullName: string
+  -abbreviation: string
+  +getId(): number
+  +getFullName(): string
+  +getAbbreviation(): string
+}
+
+class Teacher {
+  -id: number
+  -name: string
+  -email: string
+  -phone: string
+  -departmentId: number
+  -degreeId: number
+  +getId(): number
+  +getName(): string
+  +getEmail(): string
+  +getDepartment(): Department
+  +getDegree(): Degree
+}
+
+class Course {
+  -id: number
+  -name: string
+  -credits: number
+  -description: string
+  +getId(): number
+  +getName(): string
+  +getCredits(): number
+}
+
+class Semester {
+  -id: number
+  -name: string
+  -startDate: Date
+  -endDate: Date
+  -year: number
+  +getId(): number
+  +getName(): string
+  +getYear(): number
+}
+
+class Class {
+  -id: number
+  -name: string
+  -courseId: number
+  -semesterId: number
+  -studentCount: number
+  +getId(): number
+  +getName(): string
+  +getCourse(): Course
+  +getSemester(): Semester
+  +getStudentCount(): number
+}
+
+class Assignment {
+  -id: number
+  -teacherId: number
+  -classId: number
+  -semesterId: number
+  -hours: number
+  +getId(): number
+  +getTeacher(): Teacher
+  +getClass(): Class
+  +getHours(): number
+}
+
+' Lớp cấu hình hệ số
+class Rate {
+  -id: number
+  -name: string
+  -value: number
+  +getId(): number
+  +getName(): string
+  +getValue(): number
+  +setValue(value: number): void
+}
+
+class DegreeCoeff {
+  -id: number
+  -degreeId: number
+  -coefficient: number
+  +getId(): number
+  +getDegree(): Degree
+  +getCoefficient(): number
+  +setCoefficient(coeff: number): void
+}
+
+class ClassCoeff {
+  -id: number
+  -classType: string
+  -coefficient: number
+  +getId(): number
+  +getClassType(): string
+  +getCoefficient(): number
+  +setCoefficient(coeff: number): void
+}
+
+class TeachingHistory {
+  -id: number
+  -teacherId: number
+  -teacherName: string
+  -className: string
+  -subjectName: string
+  -hours: number
+  -rate: number
+  -degreeCoeff: number
+  -classCoeff: number
+  -totalAmount: number
+  -calculatedAt: DateTime
+  +getId(): number
+  +getTeacher(): Teacher
+  +getTotalAmount(): number
+  +getCalculatedAt(): DateTime
+}
+
+' Lớp dịch vụ
+class SalaryCalculator {
+  +calculateSalary(assignment: Assignment): number
+  +getRate(): Rate
+  +getDegreeCoeff(degreeId: number): DegreeCoeff
+  +getClassCoeff(classType: string): ClassCoeff
+  -validateInput(assignment: Assignment): boolean
+}
+
+class DatabaseService {
+  -db: mysql.Pool
+  +query(sql: string, params: any[]): Promise<any>
+  +getConnection(): Promise<Connection>
+  +transaction(callback: Function): Promise<any>
+}
+
+' Quan hệ
+Teacher }o--|| Department : belongs to
+Teacher }o--|| Degree : has
+Class }o--|| Course : for
+Class }o--|| Semester : in
+Assignment }o--|| Teacher : assigned to
+Assignment }o--|| Class : teaches
+Assignment }o--|| Semester : in
+DegreeCoeff }o--|| Degree : applies to
+TeachingHistory }o--|| Teacher : for
+
+SalaryCalculator ..> Assignment : uses
+SalaryCalculator ..> Rate : uses
+SalaryCalculator ..> DegreeCoeff : uses
+SalaryCalculator ..> ClassCoeff : uses
+SalaryCalculator ..> TeachingHistory : creates
+
+DatabaseService <|.. Teacher : uses
+DatabaseService <|.. Assignment : uses
+DatabaseService <|.. TeachingHistory : uses
+
+note right of SalaryCalculator
+  Công thức tính lương:
+  totalAmount = hours × rate × degreeCoeff × classCoeff
+end note
+
+note top of TeachingHistory
+  Lưu lịch sử các lần tính lương
+  với đầy đủ thông tin chi tiết
+end note
+
+@enduml

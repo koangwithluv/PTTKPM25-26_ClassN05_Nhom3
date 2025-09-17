@@ -1,0 +1,76 @@
+@startuml State_Diagram_System_Config
+!theme plain
+
+title Biểu đồ Trạng thái - Cấu hình Hệ thống
+
+[*] --> DefaultConfig : Khởi tạo hệ thống
+
+state DefaultConfig {
+  DefaultConfig : Cấu hình mặc định
+  DefaultConfig : Rate = 0, Coefficients = 1.0
+}
+
+state Configuring {
+  Configuring : Đang cấu hình
+  
+  state UpdatingRate {
+    UpdatingRate : Cập nhật định mức tiền/tiết
+    UpdatingRate : Validation: rate > 0
+  }
+  
+  state UpdatingDegreeCoeff {
+    UpdatingDegreeCoeff : Cập nhật hệ số bằng cấp
+    UpdatingDegreeCoeff : Validation: coefficient > 0
+  }
+  
+  state UpdatingClassCoeff {
+    UpdatingClassCoeff : Cập nhật hệ số lớp
+    UpdatingClassCoeff : Validation: coefficient > 0
+  }
+}
+
+state ConfigReady {
+  ConfigReady : Cấu hình đã sẵn sàng
+  ConfigReady : Có thể tính lương
+}
+
+state ConfigError {
+  ConfigError : Lỗi cấu hình
+  ConfigError : Cần sửa lại
+}
+
+DefaultConfig --> Configuring : updateConfig()
+
+Configuring --> UpdatingRate : updateRate()
+Configuring --> UpdatingDegreeCoeff : updateDegreeCoeff()
+Configuring --> UpdatingClassCoeff : updateClassCoeff()
+
+UpdatingRate --> ConfigReady : [validation passed]
+UpdatingRate --> ConfigError : [validation failed]
+
+UpdatingDegreeCoeff --> ConfigReady : [validation passed]
+UpdatingDegreeCoeff --> ConfigError : [validation failed]
+
+UpdatingClassCoeff --> ConfigReady : [validation passed]
+UpdatingClassCoeff --> ConfigError : [validation failed]
+
+ConfigReady --> Configuring : updateConfig()
+ConfigError --> Configuring : retry()
+
+note right of ConfigReady
+  Điều kiện sẵn sàng:
+  - Rate > 0
+  - All degree coefficients > 0
+  - All class coefficients > 0
+  - Database connection OK
+end note
+
+note bottom of ConfigError
+  Lỗi cấu hình:
+  - Giá trị âm hoặc = 0
+  - Dữ liệu không hợp lệ
+  - Lỗi database
+  - Constraint violation
+end note
+
+@enduml

@@ -1,0 +1,87 @@
+@startuml State_Diagram_Salary_Calculation
+!theme plain
+
+title Biểu đồ Trạng thái - Quá trình Tính Lương
+
+[*] --> Initial : Khởi tạo
+
+state Initial {
+  Initial : Chưa có dữ liệu
+  Initial : Cần chuẩn bị dữ liệu đầu vào
+}
+
+state DataPreparation {
+  DataPreparation : Chuẩn bị dữ liệu
+  
+  state CheckingAssignment {
+    CheckingAssignment : Kiểm tra phân công
+    CheckingAssignment : Validate teacherId, classId
+  }
+  
+  state CheckingConfig {
+    CheckingConfig : Kiểm tra cấu hình
+    CheckingConfig : Rate, DegreeCoeff, ClassCoeff
+  }
+}
+
+state Calculating {
+  Calculating : Đang tính toán
+  Calculating : Áp dụng công thức
+  Calculating : Amount = Hours × Rate × DegreeCoeff × ClassCoeff
+}
+
+state Completed {
+  Completed : Hoàn thành tính toán
+  Completed : Có kết quả lương
+  
+  state SavingHistory {
+    SavingHistory : Lưu vào lịch sử
+    SavingHistory : Insert TeachingHistory record
+  }
+  
+  state GeneratingReport {
+    GeneratingReport : Tạo báo cáo
+    GeneratingReport : Format kết quả hiển thị
+  }
+}
+
+state Error {
+  Error : Lỗi xử lý
+  Error : Hiển thị thông báo lỗi
+}
+
+Initial --> DataPreparation : startCalculation()
+DataPreparation --> CheckingAssignment
+CheckingAssignment --> CheckingConfig : [assignment valid]
+CheckingAssignment --> Error : [assignment invalid]
+CheckingConfig --> Calculating : [config valid]
+CheckingConfig --> Error : [config invalid]
+
+Calculating --> Completed : [calculation success]
+Calculating --> Error : [calculation failed]
+
+Completed --> SavingHistory
+SavingHistory --> GeneratingReport : [save success]
+SavingHistory --> Error : [save failed]
+GeneratingReport --> [*] : displayResult()
+
+Error --> DataPreparation : retry()
+Error --> [*] : cancel()
+
+note right of Calculating
+  Công thức tính lương:
+  totalAmount = assignment.hours 
+    × rate.value 
+    × degreeCoeff.coefficient 
+    × classCoeff.coefficient
+end note
+
+note bottom of Error
+  Các lỗi có thể xảy ra:
+  - Thiếu dữ liệu phân công
+  - Cấu hình hệ số không hợp lệ
+  - Lỗi kết nối database
+  - Lỗi validation dữ liệu
+end note
+
+@enduml

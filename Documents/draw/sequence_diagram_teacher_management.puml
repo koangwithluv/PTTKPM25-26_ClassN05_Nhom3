@@ -1,0 +1,209 @@
+@startuml sequence_diagram_teacher_management
+!theme blueprint
+title Biểu đồ Trình tự - Quản lý Giảng viên (CRUD Operations)
+
+actor Admin as "Admin\n(Quản trị viên)"
+participant TeacherPage as "Teacher Management\nPage (React)"
+participant TeacherAPI as "Teacher API\n(/api/teachers/route.ts)"
+participant Database as "MySQL Database\n(teachers table)"
+participant ValidationLayer as "Data Validation\nLayer"
+
+== Xem danh sách giảng viên ==
+Admin -> TeacherPage : Truy cập trang quản lý giảng viên
+activate TeacherPage
+
+TeacherPage -> TeacherAPI : GET /api/teachers
+activate TeacherAPI
+
+TeacherAPI -> Database : SELECT * FROM teachers\nORDER BY created_at DESC
+activate Database
+Database --> TeacherAPI : List of teachers\n[{id, name, email, degree_id, department_id, ...}]
+deactivate Database
+
+TeacherAPI --> TeacherPage : 200 OK\n{teachers: [...]}
+deactivate TeacherAPI
+
+TeacherPage --> Admin : Hiển thị danh sách giảng viên
+deactivate TeacherPage
+
+== Tạo giảng viên mới ==
+Admin -> TeacherPage : Nhấn "Thêm giảng viên mới"
+activate TeacherPage
+
+TeacherPage --> Admin : Hiển thị form tạo mới
+
+Admin -> TeacherPage : Điền thông tin giảng viên\n{name, email, phone, degree_id, department_id}
+
+TeacherPage -> ValidationLayer : Validate dữ liệu đầu vào
+activate ValidationLayer
+
+alt Validation thành công
+    ValidationLayer --> TeacherPage : Data hợp lệ
+    deactivate ValidationLayer
+    
+    TeacherPage -> TeacherAPI : POST /api/teachers\n{teacherData}
+    activate TeacherAPI
+    
+    TeacherAPI -> ValidationLayer : Server-side validation
+    activate ValidationLayer
+    ValidationLayer --> TeacherAPI : Validated
+    deactivate ValidationLayer
+    
+    TeacherAPI -> Database : INSERT INTO teachers\n(name, email, phone, degree_id, department_id)
+    activate Database
+    
+    alt Insert thành công
+        Database --> TeacherAPI : INSERT result\n{insertId, affectedRows}
+        deactivate Database
+        
+        TeacherAPI --> TeacherPage : 201 Created\n{success: true, teacher: {...}}
+        deactivate TeacherAPI
+        
+        TeacherPage -> TeacherPage : Cập nhật danh sách local
+        TeacherPage --> Admin : Hiển thị thông báo thành công
+        
+    else Lỗi database (duplicate email, foreign key)
+        Database --> TeacherAPI : Error\n(Duplicate entry/Foreign key constraint)
+        deactivate Database
+        
+        TeacherAPI --> TeacherPage : 400 Bad Request\n{error: "Email đã tồn tại"}
+        deactivate TeacherAPI
+        
+        TeacherPage --> Admin : Hiển thị thông báo lỗi
+    end
+    
+else Validation thất bại
+    ValidationLayer --> TeacherPage : Error\n{field: "message"}
+    deactivate ValidationLayer
+    
+    TeacherPage --> Admin : Hiển thị lỗi validation
+end
+
+deactivate TeacherPage
+
+== Cập nhật thông tin giảng viên ==
+Admin -> TeacherPage : Nhấn "Sửa" trên một giảng viên
+activate TeacherPage
+
+TeacherPage -> TeacherAPI : GET /api/teachers/{id}
+activate TeacherAPI
+
+TeacherAPI -> Database : SELECT * FROM teachers WHERE id = ?
+activate Database
+Database --> TeacherAPI : Teacher record
+deactivate Database
+
+TeacherAPI --> TeacherPage : 200 OK\n{teacher: {...}}
+deactivate TeacherAPI
+
+TeacherPage --> Admin : Hiển thị form với dữ liệu hiện tại
+
+Admin -> TeacherPage : Sửa đổi thông tin\n{updatedData}
+
+TeacherPage -> ValidationLayer : Validate dữ liệu mới
+activate ValidationLayer
+
+alt Validation thành công
+    ValidationLayer --> TeacherPage : Data hợp lệ
+    deactivate ValidationLayer
+    
+    TeacherPage -> TeacherAPI : PUT /api/teachers/{id}\n{updatedData}
+    activate TeacherAPI
+    
+    TeacherAPI -> Database : UPDATE teachers SET ...\nWHERE id = ?
+    activate Database
+    
+    alt Update thành công
+        Database --> TeacherAPI : UPDATE result\n{affectedRows: 1}
+        deactivate Database
+        
+        TeacherAPI --> TeacherPage : 200 OK\n{success: true, teacher: {...}}
+        deactivate TeacherAPI
+        
+        TeacherPage -> TeacherPage : Cập nhật danh sách local
+        TeacherPage --> Admin : Hiển thị thông báo thành công
+        
+    else Không tìm thấy hoặc lỗi constraint
+        Database --> TeacherAPI : Error/No rows affected
+        deactivate Database
+        
+        TeacherAPI --> TeacherPage : 404/400\n{error: "Không thể cập nhật"}
+        deactivate TeacherAPI
+        
+        TeacherPage --> Admin : Hiển thị thông báo lỗi
+    end
+    
+else Validation thất bại
+    ValidationLayer --> TeacherPage : Error\n{field: "message"}
+    deactivate ValidationLayer
+    
+    TeacherPage --> Admin : Hiển thị lỗi validation
+end
+
+deactivate TeacherPage
+
+== Xóa giảng viên ==
+Admin -> TeacherPage : Nhấn "Xóa" trên một giảng viên
+activate TeacherPage
+
+TeacherPage --> Admin : Hiển thị dialog xác nhận
+
+Admin -> TeacherPage : Xác nhận xóa
+
+TeacherPage -> TeacherAPI : DELETE /api/teachers/{id}
+activate TeacherAPI
+
+TeacherAPI -> Database : BEGIN TRANSACTION
+activate Database
+
+TeacherAPI -> Database : SELECT COUNT(*) FROM assignments\nWHERE teacher_id = ?
+Database --> TeacherAPI : Assignment count
+
+alt Có phân công liên quan
+    TeacherAPI -> Database : ROLLBACK
+    Database --> TeacherAPI : Transaction rolled back
+    deactivate Database
+    
+    TeacherAPI --> TeacherPage : 400 Bad Request\n{error: "Không thể xóa, có phân công liên quan"}
+    deactivate TeacherAPI
+    
+    TeacherPage --> Admin : Hiển thị thông báo lỗi
+    
+else Không có phân công
+    TeacherAPI -> Database : DELETE FROM teachers WHERE id = ?
+    Database --> TeacherAPI : DELETE result
+    
+    TeacherAPI -> Database : COMMIT
+    Database --> TeacherAPI : Transaction committed
+    deactivate Database
+    
+    TeacherAPI --> TeacherPage : 200 OK\n{success: true}
+    deactivate TeacherAPI
+    
+    TeacherPage -> TeacherPage : Loại bỏ khỏi danh sách local
+    TeacherPage --> Admin : Hiển thị thông báo thành công
+end
+
+deactivate TeacherPage
+
+note right of Database
+    Bảng teachers:
+    - id (Primary Key, AUTO_INCREMENT)
+    - name (VARCHAR, NOT NULL)
+    - email (VARCHAR, UNIQUE)
+    - phone (VARCHAR)
+    - degree_id (Foreign Key → degrees.id)
+    - department_id (Foreign Key → departments.id)
+    - created_at, updated_at (TIMESTAMP)
+end note
+
+note right of ValidationLayer
+    Client-side & Server-side validation:
+    - Name: không rỗng, 2-100 ký tự
+    - Email: format hợp lệ, unique
+    - Phone: format số điện thoại
+    - degree_id: tồn tại trong bảng degrees
+    - department_id: tồn tại trong bảng departments
+end note
+
+@enduml
