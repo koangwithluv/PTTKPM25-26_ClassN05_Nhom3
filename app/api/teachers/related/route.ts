@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '../../../../lib/connect_Sql'
+import { db } from '@/lib/connect_Sql'
 
 // API phụ: Lấy danh sách phân công liên quan đến giáo viên
 export async function GET(req: NextRequest) {

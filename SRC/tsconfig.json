@@ -22,14 +22,17 @@
         "name": "next"
       }
     ],
-    "baseUrl": ".",
+    "baseUrl": "..",
     "paths": {
-      "@/*": ["SRC/*"]
+      "@/*": ["SRC/*"],
+      "@/lib/*": ["SRC/lib/*"],
+      "@/hooks/*": ["SRC/hooks/*"],
+      "@/components/*": ["SRC/components/*"]
     }
   },
   "include": [
-    "../next-env.d.ts.ts",
-    ".next/types/**/*.ts",
+    "../next-env.d.ts",
+    "../.next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
   ],
