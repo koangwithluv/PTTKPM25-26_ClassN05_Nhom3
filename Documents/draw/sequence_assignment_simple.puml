@@ -1,0 +1,42 @@
+@startuml sequence_assignment_simple
+!theme plain
+title Phân công Giảng dạy - Sequence Diagram
+
+actor Admin
+participant "Assignment Page" as Page
+participant "Assignment API" as API
+participant "Database" as DB
+
+== Tạo phân công ==
+Admin -> Page : Tạo phân công mới
+Page -> API : POST /assignments
+API -> DB : INSERT assignment
+DB --> API : Success
+API --> Page : 201 Created
+Page --> Admin : Thông báo thành công
+
+== Xem danh sách ==
+Admin -> Page : Xem danh sách
+Page -> API : GET /assignments
+API -> DB : SELECT assignments
+DB --> API : Assignment list
+API --> Page : Data
+Page --> Admin : Hiển thị danh sách
+
+== Cập nhật ==
+Admin -> Page : Sửa phân công
+Page -> API : PUT /assignments/{id}
+API -> DB : UPDATE assignment
+DB --> API : Success
+API --> Page : 200 OK
+Page --> Admin : Cập nhật thành công
+
+== Xóa ==
+Admin -> Page : Xóa phân công
+Page -> API : DELETE /assignments/{id}
+API -> DB : DELETE assignment
+DB --> API : Success
+API --> Page : 200 OK
+Page --> Admin : Xóa thành công
+
+@enduml
