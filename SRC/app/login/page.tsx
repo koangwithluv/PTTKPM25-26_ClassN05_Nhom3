@@ -18,13 +18,29 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    // Fake login logic, replace with real API call
-    if (form.username === "admin" && form.password === "admin") {
-      // Save login state (for demo, use localStorage)
-      localStorage.setItem("isLoggedIn", "true")
-      router.push("/")
-    } else {
-      setError("Sai tên đăng nhập hoặc mật khẩu!")
+    
+    try {
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(form),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Save login state và user info
+        localStorage.setItem("isLoggedIn", "true")
+        localStorage.setItem("user", JSON.stringify(data.user))
+        router.push("/")
+      } else {
+        setError(data.message || "Đăng nhập thất bại!")
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      setError("Lỗi kết nối server!")
     }
   }
 

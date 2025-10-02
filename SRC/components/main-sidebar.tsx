@@ -123,7 +123,9 @@ export default function MainSidebar() {
   return (
     <div className="w-64 border-r bg-background h-screen">
       <div className="h-16 flex items-center border-b px-6">
-        <h1 className="font-semibold text-lg">Hệ thống quản lý</h1>
+        <Link href="/" className="font-semibold text-lg text-blue-600 hover:text-blue-800 transition-colors">
+          🏫 Hệ thống quản lý
+        </Link>
       </div>
       <nav className="p-4 space-y-2">
         {menuGroups.map((group) => (

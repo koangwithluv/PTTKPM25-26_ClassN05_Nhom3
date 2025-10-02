@@ -22,12 +22,16 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className={inter.className}>
+        <header className="bg-white dark:bg-gray-900 shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <Link href="/" className="text-xl font-bold text-blue-600 hover:text-blue-800 transition-colors">
+                🏫 Hệ thống quản lý giáo dục
+              </Link>
+            </div>
+          </div>
+        </header>
         <AuthGuard>{children}</AuthGuard>
-        <div className="flex items-center justify-end p-4">
-          <Link href="/login">
-            <Button variant="outline">Đăng nhập</Button>
-          </Link>
-        </div>
       </body>
     </html>
   )
