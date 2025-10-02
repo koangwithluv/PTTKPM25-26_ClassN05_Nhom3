@@ -1,136 +1,145 @@
 @startuml sequence_diagram_login
 !theme blueprint
-title Biểu đồ Trình tự - Quy trình Đăng nhập
 
-actor User as "Người dùng"
-participant LoginPage as "Login Page\n(React Component)"
-participant AuthGuard as "AuthGuard\n(Authentication Guard)"
-participant LoginAPI as "Login API\n(/api/login/route.ts)"
-participant Database as "MySQL Database\n(tinh_luong_giang_vien)"
-participant LocalStorage as "Browser\nLocalStorage"
-participant Router as "Next.js Router"
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 10
 
-== Khởi tạo truy cập ==
-User -> LoginPage : Truy cập trang login
-activate LoginPage
+title Biểu đồ Trình tự - Quy trình Đăng nhập Hệ thống
 
-LoginPage -> AuthGuard : Kiểm tra trạng thái đăng nhập
-activate AuthGuard
+actor NguoiDung as "Người dùng"
+participant TrangDangNhap as "Trang Đăng Nhập\n(React Component)"
+participant BaoVeXacThuc as "Bảo Vệ Xác Thực\n(AuthGuard)"
+participant APIDangNhap as "API Đăng Nhập\n(/api/login/route.ts)"
+participant CSDL as "Cơ Sở Dữ Liệu MySQL\n(tinh_luong_giang_vien)"
+participant LuuTruLocal as "Lưu Trữ Cục Bộ\n(LocalStorage)"
+participant DieuHuong as "Điều Hướng Next.js\n(Router)"
 
-AuthGuard -> LocalStorage : getItem("isLoggedIn")
-activate LocalStorage
-LocalStorage --> AuthGuard : null/false
-deactivate LocalStorage
+== Khởi tạo truy cập hệ thống ==
+NguoiDung -> TrangDangNhap : Truy cập trang đăng nhập
+activate TrangDangNhap
 
-AuthGuard --> LoginPage : Chưa đăng nhập
-deactivate AuthGuard
+TrangDangNhap -> BaoVeXacThuc : Kiểm tra trạng thái đăng nhập
+activate BaoVeXacThuc
 
-LoginPage --> User : Hiển thị form đăng nhập
-deactivate LoginPage
+BaoVeXacThuc -> LuuTruLocal : lấyMuc("daDangNhap")
+activate LuuTruLocal
+LuuTruLocal --> BaoVeXacThuc : null/false
+deactivate LuuTruLocal
 
-== Quá trình đăng nhập ==
-User -> LoginPage : Nhập username/password\n(admin/admin)
-activate LoginPage
+BaoVeXacThuc --> TrangDangNhap : Chưa đăng nhập
+deactivate BaoVeXacThuc
 
-LoginPage -> LoginPage : Validate input\n(không được rỗng)
+TrangDangNhap --> NguoiDung : Hiển thị biểu mẫu đăng nhập
+deactivate TrangDangNhap
 
-alt Validation thành công
-    LoginPage -> LoginAPI : POST /api/login\n{username, password}
-    activate LoginAPI
+== Quá trình đăng nhập hệ thống ==
+NguoiDung -> TrangDangNhap : Nhập tên đăng nhập/mật khẩu\n(admin/admin hoặc user1/user1)
+activate TrangDangNhap
+
+TrangDangNhap -> TrangDangNhap : Kiểm tra tính hợp lệ dữ liệu\n(không được để trống)
+
+alt Dữ liệu hợp lệ
+    TrangDangNhap -> APIDangNhap : POST /api/login\n{tenDangNhap, matKhau}
+    activate APIDangNhap
     
-    LoginAPI -> Database : SELECT * FROM users\nWHERE username = ? AND password = ?
-    activate Database
+    APIDangNhap -> CSDL : SELECT * FROM users\nWHERE username = ? AND password = ?
+    activate CSDL
     
-    alt Thông tin đăng nhập đúng
-        Database --> LoginAPI : User record found\n{id, username, role}
-        deactivate Database
+    alt Thông tin đăng nhập chính xác
+        CSDL --> APIDangNhap : Tìm thấy người dùng\n{id, username, role}
+        deactivate CSDL
         
-        LoginAPI --> LoginPage : 200 OK\n{success: true, user: {role}}
-        deactivate LoginAPI
+        APIDangNhap --> TrangDangNhap : 200 OK\n{success: true, user: {role}}
+        deactivate APIDangNhap
         
-        LoginPage -> LocalStorage : setItem("isLoggedIn", "true")\nsetItem("userRole", role)
-        activate LocalStorage
-        LocalStorage --> LoginPage : Stored successfully
-        deactivate LocalStorage
+        TrangDangNhap -> LuuTruLocal : đặtMuc("daDangNhap", "true")\nđặtMuc("vaiTroNguoiDung", role)
+        activate LuuTruLocal
+        LuuTruLocal --> TrangDangNhap : Lưu thành công
+        deactivate LuuTruLocal
         
-        LoginPage -> Router : router.push("/quan-ly-giao-vien/bang-cap")
-        activate Router
-        Router --> LoginPage : Navigation initiated
-        deactivate Router
+        TrangDangNhap -> DieuHuong : router.push("/quan-ly-giao-vien/bang-cap")
+        activate DieuHuong
+        DieuHuong --> TrangDangNhap : Bắt đầu điều hướng
+        deactivate DieuHuong
         
-        LoginPage --> User : Chuyển hướng đến Dashboard
+        TrangDangNhap --> NguoiDung : Chuyển hướng đến Bảng điều khiển
         
-    else Thông tin đăng nhập sai
-        Database --> LoginAPI : No user found
-        deactivate Database
+    else Thông tin đăng nhập không chính xác
+        CSDL --> APIDangNhap : Không tìm thấy người dùng
+        deactivate CSDL
         
-        LoginAPI --> LoginPage : 401 Unauthorized\n{success: false, message: "Invalid credentials"}
-        deactivate LoginAPI
+        APIDangNhap --> TrangDangNhap : 401 Unauthorized\n{success: false, message: "Thông tin đăng nhập không đúng"}
+        deactivate APIDangNhap
         
-        LoginPage --> User : Hiển thị thông báo lỗi
+        TrangDangNhap --> NguoiDung : Hiển thị thông báo lỗi
     end
     
-else Validation thất bại
-    LoginPage --> User : Hiển thị lỗi validation
+else Dữ liệu không hợp lệ
+    TrangDangNhap --> NguoiDung : Hiển thị lỗi kiểm tra dữ liệu
 end
 
-deactivate LoginPage
+deactivate TrangDangNhap
 
 == Bảo vệ trang sau đăng nhập ==
-User -> AuthGuard : Truy cập trang được bảo vệ
-activate AuthGuard
+NguoiDung -> BaoVeXacThuc : Truy cập trang có bảo mật
+activate BaoVeXacThuc
 
-AuthGuard -> LocalStorage : getItem("isLoggedIn")
-activate LocalStorage
-LocalStorage --> AuthGuard : "true"
-deactivate LocalStorage
+BaoVeXacThuc -> LuuTruLocal : lấyMuc("daDangNhap")
+activate LuuTruLocal
+LuuTruLocal --> BaoVeXacThuc : "true"
+deactivate LuuTruLocal
 
-AuthGuard -> AuthGuard : Kiểm tra role và permissions
+BaoVeXacThuc -> BaoVeXacThuc : Kiểm tra vai trò và quyền hạn
 
 alt Có quyền truy cập
-    AuthGuard --> User : Cho phép truy cập trang
+    BaoVeXacThuc --> NguoiDung : Cho phép vào trang
 else Không có quyền
-    AuthGuard -> Router : router.push("/login")
-    activate Router
-    Router --> AuthGuard : Redirect to login
-    deactivate Router
-    AuthGuard --> User : Chuyển về trang đăng nhập
+    BaoVeXacThuc -> DieuHuong : router.push("/login")
+    activate DieuHuong
+    DieuHuong --> BaoVeXacThuc : Chuyển hướng đến đăng nhập
+    deactivate DieuHuong
+    BaoVeXacThuc --> NguoiDung : Quay về trang đăng nhập
 end
 
-deactivate AuthGuard
+deactivate BaoVeXacThuc
 
-== Đăng xuất ==
-User -> AuthGuard : Nhấn nút Logout
-activate AuthGuard
+== Đăng xuất khỏi hệ thống ==
+NguoiDung -> BaoVeXacThuc : Nhấn nút Đăng Xuất
+activate BaoVeXacThuc
 
-AuthGuard -> LocalStorage : removeItem("isLoggedIn")\nremoveItem("userRole")
-activate LocalStorage
-LocalStorage --> AuthGuard : Items removed
-deactivate LocalStorage
+BaoVeXacThuc -> LuuTruLocal : xoaMuc("daDangNhap")\nxoaMuc("vaiTroNguoiDung")
+activate LuuTruLocal
+LuuTruLocal --> BaoVeXacThuc : Đã xóa các mục
+deactivate LuuTruLocal
 
-AuthGuard -> Router : router.push("/login")
-activate Router
-Router --> AuthGuard : Navigation to login
-deactivate Router
+BaoVeXacThuc -> DieuHuong : router.push("/login")
+activate DieuHuong
+DieuHuong --> BaoVeXacThuc : Điều hướng đến trang đăng nhập
+deactivate DieuHuong
 
-AuthGuard --> User : Chuyển về trang đăng nhập
-deactivate AuthGuard
+BaoVeXacThuc --> NguoiDung : Quay về trang đăng nhập
+deactivate BaoVeXacThuc
 
-note right of Database
-    Database chứa bảng users với:
-    - id (Primary Key)
-    - username (admin)
-    - password (admin)
-    - role (Admin/Teacher)
-    - created_at, updated_at
+note right of CSDL
+    Cơ sở dữ liệu chứa bảng users với:
+    - id (Khóa chính)
+    - username (admin, user1)
+    - password (admin, user1) 
+    - role (Admin/Teacher - Quản trị viên/Giảng viên)
+    - created_at, updated_at (Ngày tạo/cập nhật)
+    
+    Tài khoản mặc định:
+    - admin/admin (Quản trị viên)
+    - user1/user1 (Giảng viên)
 end note
 
-note right of LocalStorage
-    Lưu trữ trạng thái authentication:
-    - isLoggedIn: "true"/"false"
-    - userRole: "Admin"/"Teacher"
+note right of LuuTruLocal
+    Lưu trữ trạng thái xác thực:
+    - daDangNhap: "true"/"false"
+    - vaiTroNguoiDung: "Admin"/"Teacher"
     
-    Session-based, mất khi đóng browser
+    Dựa trên phiên làm việc, mất khi đóng trình duyệt
+    Bảo mật cơ bản cho việc quản lý quyền truy cập
 end note
 
 @enduml

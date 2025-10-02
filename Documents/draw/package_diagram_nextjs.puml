@@ -1,0 +1,184 @@
+@startuml package_diagram_nextjs
+!theme plain
+skinparam packageStyle rectangle
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 12
+
+title Biểu đồ Gói Cấu trúc Thực tế - Dự án Next.js
+
+package "<<Dự án Next.js>>\nSRC" as ROOT {
+    
+    package "<<Tầng Giao diện>>\napp" as APP #LightBlue {
+        package "api" as API {
+            [login/route.ts]
+            [teachers/route.ts]
+            [degrees/route.ts]
+            [departments/route.ts]
+            [classes/route.ts]
+            [assignments/route.ts]
+            [semesters/route.ts]
+            [tinh-tien-day/route.ts]
+        }
+        
+        package "login" as LOGIN {
+            [page.tsx]
+        }
+        
+        package "quan-ly-giao-vien" as TEACHER_PAGES {
+            [page.tsx]
+            [layout.tsx]
+            package "giao-vien" {
+                [page.tsx]
+            }
+            package "bang-cap" {
+                [page.tsx]
+            }
+            package "khoa" {
+                [page.tsx]
+            }
+            package "thong-ke" {
+                [page.tsx]
+            }
+        }
+        
+        package "quan-ly-lop-hoc-phan" as CLASS_PAGES {
+            [page.tsx]
+            [layout.tsx]
+            package "hoc-phan" {
+                [page.tsx]
+            }
+            package "ki-hoc" {
+                [page.tsx]
+            }
+            package "lop-hoc" {
+                [page.tsx]
+            }
+            package "phan-cong" {
+                [page.tsx]
+            }
+        }
+        
+        package "tinh-tien-day" as SALARY_PAGES {
+            [page.tsx]
+            [layout.tsx]
+            package "calculate" {
+                [page.tsx]
+            }
+            package "history" {
+                [page.tsx]
+            }
+            package "rate" {
+                [page.tsx]
+            }
+        }
+        
+        [layout.tsx]
+        [page.tsx]
+        [globals.css]
+    }
+    
+    package "<<Tầng Components>>\ncomponents" as COMPONENTS #LightGreen {
+        package "ui" as UI_COMPONENTS {
+            [button.tsx]
+            [input.tsx]
+            [card.tsx]
+            [table.tsx]
+            [dialog.tsx]
+            [form.tsx]
+            [sidebar.tsx]
+            [...các component khác]
+        }
+        
+        [AuthGuard.tsx]
+        [HeaderAuth.tsx]
+        [main-sidebar.tsx]
+        [SidebarUC3.tsx]
+        [theme-provider.tsx]
+    }
+    
+    package "<<Tầng Dữ liệu>>\nlib" as LIB #LightYellow {
+        [connect_Sql.ts]
+        [utils.ts]
+    }
+    
+    package "<<Tầng Hooks>>\nhooks" as HOOKS #LightCyan {
+        [use-mobile.tsx]
+        [use-toast.ts]
+    }
+    
+    package "<<Tầng Tĩnh>>\npublic" as PUBLIC #LightGray {
+        [placeholder-logo.png]
+        [placeholder-user.jpg]
+        [các file tĩnh khác...]
+    }
+    
+    package "<<Cấu hình>>\nconfig" as CONFIG #Wheat {
+        [package.json]
+        [tsconfig.json]
+        [tailwind.config.ts]
+        [next.config.mjs]
+        [postcss.config.mjs]
+        [components.json]
+    }
+}
+
+package "<<Cơ sở dữ liệu>>\nMySQL" as DATABASE #LightSalmon {
+    [users - Người dùng]
+    [teachers - Giáo viên] 
+    [degrees - Bằng cấp]
+    [departments - Khoa]
+    [courses - Học phần]
+    [semesters - Kỳ học]
+    [classes - Lớp học]
+    [assignments - Phân công]
+    [salary_calculations - Tính lương]
+}
+
+' Mối quan hệ phụ thuộc
+APP --> COMPONENTS : import và sử dụng
+API --> LIB : kết nối database
+COMPONENTS --> HOOKS : sử dụng custom hooks
+LIB --> DATABASE : truy vấn SQL
+APP --> PUBLIC : tài nguyên tĩnh
+ROOT --> CONFIG : cấu hình dự án
+
+' Quan hệ chi tiết
+LOGIN --> API : POST /api/login
+TEACHER_PAGES --> API : GET/POST /api/teachers
+CLASS_PAGES --> API : GET/POST /api/classes
+SALARY_PAGES --> API : GET/POST /api/tinh-tien-day
+
+' Chú thích
+note top of APP
+  **App Directory (Next.js 13+)**
+  - Pages và Layouts
+  - API Routes
+  - Server Components
+  - Client Components
+end note
+
+note top of COMPONENTS
+  **React Components**
+  - UI Components (shadcn/ui)
+  - Business Components
+  - Layout Components
+  - Reusable Components
+end note
+
+note top of LIB
+  **Utilities & Database**
+  - Database Connection
+  - Helper Functions
+  - Type Definitions
+  - Shared Logic
+end note
+
+note top of DATABASE
+  **MySQL Database**
+  - Bảng người dùng và phân quyền
+  - Bảng thông tin giáo viên
+  - Bảng học phần và lớp học
+  - Bảng tính lương
+end note
+
+@enduml

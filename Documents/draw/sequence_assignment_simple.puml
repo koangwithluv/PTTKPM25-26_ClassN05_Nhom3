@@ -1,42 +1,43 @@
 @startuml sequence_assignment_simple
 !theme plain
-title Phân công Giảng dạy - Sequence Diagram
+skinparam defaultFontName "Arial Unicode MS"
+title Biểu đồ Trình tự - Phân công Giảng dạy
 
-actor Admin
-participant "Assignment Page" as Page
-participant "Assignment API" as API
-participant "Database" as DB
+actor QuanTriVien as "Quản trị viên"
+participant TrangPhanCong as "Trang Phân Công"
+participant APIPhanCong as "API Phân Công"
+participant CSDL as "Cơ Sở Dữ Liệu"
 
 == Tạo phân công ==
-Admin -> Page : Tạo phân công mới
-Page -> API : POST /assignments
-API -> DB : INSERT assignment
-DB --> API : Success
-API --> Page : 201 Created
-Page --> Admin : Thông báo thành công
+QuanTriVien -> TrangPhanCong : Tạo phân công mới
+TrangPhanCong -> APIPhanCong : POST /assignments
+APIPhanCong -> CSDL : INSERT phân công
+CSDL --> APIPhanCong : Thành công
+APIPhanCong --> TrangPhanCong : 201 Đã tạo
+TrangPhanCong --> QuanTriVien : Thông báo thành công
 
 == Xem danh sách ==
-Admin -> Page : Xem danh sách
-Page -> API : GET /assignments
-API -> DB : SELECT assignments
-DB --> API : Assignment list
-API --> Page : Data
-Page --> Admin : Hiển thị danh sách
+QuanTriVien -> TrangPhanCong : Xem danh sách phân công
+TrangPhanCong -> APIPhanCong : GET /assignments
+APIPhanCong -> CSDL : SELECT danh sách phân công
+CSDL --> APIPhanCong : Danh sách phân công
+APIPhanCong --> TrangPhanCong : Dữ liệu phân công
+TrangPhanCong --> QuanTriVien : Hiển thị danh sách
 
 == Cập nhật ==
-Admin -> Page : Sửa phân công
-Page -> API : PUT /assignments/{id}
-API -> DB : UPDATE assignment
-DB --> API : Success
-API --> Page : 200 OK
-Page --> Admin : Cập nhật thành công
+QuanTriVien -> TrangPhanCong : Sửa phân công
+TrangPhanCong -> APIPhanCong : PUT /assignments/{id}
+APIPhanCong -> CSDL : UPDATE phân công
+CSDL --> APIPhanCong : Thành công
+APIPhanCong --> TrangPhanCong : 200 OK
+TrangPhanCong --> QuanTriVien : Cập nhật thành công
 
 == Xóa ==
-Admin -> Page : Xóa phân công
-Page -> API : DELETE /assignments/{id}
-API -> DB : DELETE assignment
-DB --> API : Success
-API --> Page : 200 OK
-Page --> Admin : Xóa thành công
+QuanTriVien -> TrangPhanCong : Xóa phân công
+TrangPhanCong -> APIPhanCong : DELETE /assignments/{id}
+APIPhanCong -> CSDL : DELETE phân công
+CSDL --> APIPhanCong : Thành công
+APIPhanCong --> TrangPhanCong : 200 OK
+TrangPhanCong --> QuanTriVien : Xóa thành công
 
 @enduml

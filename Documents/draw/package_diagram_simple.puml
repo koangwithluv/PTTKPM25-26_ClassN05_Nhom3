@@ -1,0 +1,104 @@
+@startuml package_diagram_simple
+!theme plain
+skinparam packageStyle rectangle
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 14
+
+title Biểu đồ Gói Tổng quan - Hệ thống Quản lý Tính Lương Giảng Viên
+
+' Các tầng chính của hệ thống
+package "<<Tầng Giao diện>> UI" as UI #LightBlue {
+    [Trang Đăng nhập]
+    [Trang Chủ]
+    [Quản lý Giáo viên]
+    [Quản lý Lớp học phần]
+    [Tính Tiền dạy]
+    [Components UI]
+}
+
+package "<<Tầng Dịch vụ>> Service" as SERVICE #LightGreen {
+    [Dịch vụ Xác thực]
+    [Dịch vụ Giáo viên]
+    [Dịch vụ Lớp học phần]
+    [Dịch vụ Tính lương]
+    [Dịch vụ Báo cáo]
+}
+
+package "<<Tầng Kho dữ liệu>> Repository" as REPOSITORY #LightYellow {
+    [Repository Giáo viên]
+    [Repository Bằng cấp]
+    [Repository Khoa]
+    [Repository Học phần]
+    [Repository Lớp học]
+    [Repository Phân công]
+    [Repository Tính lương]
+    [Kết nối Cơ sở dữ liệu]
+}
+
+package "<<Tầng Đối tượng>> Domain" as DOMAIN #LightPink {
+    [Giáo viên]
+    [Bằng cấp] 
+    [Khoa]
+    [Học phần]
+    [Kỳ học]
+    [Lớp học]
+    [Phân công giảng dạy]
+    [Tính lương]
+    [Người dùng]
+}
+
+package "<<Cơ sở dữ liệu>> Database" as DATABASE #LightGray {
+    database "MySQL\ntinh_luong_giang_vien" {
+        [Bảng users]
+        [Bảng teachers]
+        [Bảng degrees]
+        [Bảng departments]
+        [Bảng courses]
+        [Bảng semesters]
+        [Bảng classes]
+        [Bảng assignments]
+        [Bảng salary_calculations]
+    }
+}
+
+' Mối quan hệ phụ thuộc
+UI --> SERVICE : gọi API
+SERVICE --> REPOSITORY : truy xuất dữ liệu
+REPOSITORY --> DOMAIN : sử dụng entities
+SERVICE --> DOMAIN : xử lý business logic
+REPOSITORY --> DATABASE : truy vấn CSDL
+
+' Chú thích chi tiết
+note right of UI
+  **Tầng Giao diện (UI)**
+  - React Components
+  - Next.js Pages
+  - Tailwind CSS
+  - shadcn/ui Components
+end note
+
+note right of SERVICE
+  **Tầng Dịch vụ (Service)**
+  - Business Logic
+  - API Routes
+  - Data Validation
+  - Authentication
+end note
+
+note right of REPOSITORY
+  **Tầng Kho dữ liệu (Repository)**
+  - Data Access Layer
+  - Database Queries
+  - Connection Management
+  - mysql2 Integration
+end note
+
+note right of DOMAIN
+  **Tầng Đối tượng (Domain)**
+  - Business Entities
+  - Domain Models
+  - Value Objects
+  - Business Rules
+end note
+
+@enduml

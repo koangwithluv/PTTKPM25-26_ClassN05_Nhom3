@@ -1,87 +1,109 @@
 @startuml State_Diagram_Salary_Calculation
 !theme plain
 
-title Biểu đồ Trạng thái - Quá trình Tính Lương
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 10
 
-[*] --> Initial : Khởi tạo
+title Biểu đồ Trạng thái - Quá trình Tính Lương Giảng viên
 
-state Initial {
-  Initial : Chưa có dữ liệu
-  Initial : Cần chuẩn bị dữ liệu đầu vào
+[*] --> KhoiTao : Bắt đầu
+
+state KhoiTao {
+  KhoiTao : Chưa có dữ liệu
+  KhoiTao : Cần chuẩn bị dữ liệu đầu vào
+  KhoiTao : Chờ lựa chọn phân công
 }
 
-state DataPreparation {
-  DataPreparation : Chuẩn bị dữ liệu
+state ChuanBiDuLieu {
+  ChuanBiDuLieu : Chuẩn bị dữ liệu tính lương
   
-  state CheckingAssignment {
-    CheckingAssignment : Kiểm tra phân công
-    CheckingAssignment : Validate teacherId, classId
+  state KiemTraPhanCong {
+    KiemTraPhanCong : Kiểm tra phân công giảng dạy
+    KiemTraPhanCong : Xác thực mã giảng viên, mã lớp
+    KiemTraPhanCong : Kiểm tra số giờ dạy > 0
   }
   
-  state CheckingConfig {
-    CheckingConfig : Kiểm tra cấu hình
-    CheckingConfig : Rate, DegreeCoeff, ClassCoeff
-  }
-}
-
-state Calculating {
-  Calculating : Đang tính toán
-  Calculating : Áp dụng công thức
-  Calculating : Amount = Hours × Rate × DegreeCoeff × ClassCoeff
-}
-
-state Completed {
-  Completed : Hoàn thành tính toán
-  Completed : Có kết quả lương
-  
-  state SavingHistory {
-    SavingHistory : Lưu vào lịch sử
-    SavingHistory : Insert TeachingHistory record
-  }
-  
-  state GeneratingReport {
-    GeneratingReport : Tạo báo cáo
-    GeneratingReport : Format kết quả hiển thị
+  state KiemTraCauHinh {
+    KiemTraCauHinh : Kiểm tra cấu hình hệ thống
+    KiemTraCauHinh : Đơn giá, Hệ số bằng cấp, Hệ số lớp
+    KiemTraCauHinh : Tất cả hệ số > 0
   }
 }
 
-state Error {
-  Error : Lỗi xử lý
-  Error : Hiển thị thông báo lỗi
+state DangTinhToan {
+  DangTinhToan : Đang thực hiện tính toán
+  DangTinhToan : Áp dụng công thức tính lương
+  DangTinhToan : Tổng tiền = Số giờ × Đơn giá × Hệ số bằng cấp × Hệ số lớp
+  DangTinhToan : Tính phụ cấp bằng cấp và phụ cấp lớp
 }
 
-Initial --> DataPreparation : startCalculation()
-DataPreparation --> CheckingAssignment
-CheckingAssignment --> CheckingConfig : [assignment valid]
-CheckingAssignment --> Error : [assignment invalid]
-CheckingConfig --> Calculating : [config valid]
-CheckingConfig --> Error : [config invalid]
+state HoanThanhTinhToan {
+  HoanThanhTinhToan : Hoàn thành tính toán
+  HoanThanhTinhToan : Có kết quả lương cuối cùng
+  
+  state LuuLichSu {
+    LuuLichSu : Lưu vào lịch sử tính lương
+    LuuLichSu : Thêm bản ghi vào bảng salary_history
+    LuuLichSu : Cập nhật trạng thái phân công
+  }
+  
+  state TaoBaoCao {
+    TaoBaoCao : Tạo báo cáo kết quả
+    TaoBaoCao : Định dạng hiển thị
+    TaoBaoCao : Chuẩn bị dữ liệu xuất file
+  }
+}
 
-Calculating --> Completed : [calculation success]
-Calculating --> Error : [calculation failed]
+state LoiXuLy {
+  LoiXuLy : Lỗi trong quá trình xử lý
+  LoiXuLy : Hiển thị thông báo lỗi cụ thể
+  LoiXuLy : Ghi log lỗi vào hệ thống
+}
 
-Completed --> SavingHistory
-SavingHistory --> GeneratingReport : [save success]
-SavingHistory --> Error : [save failed]
-GeneratingReport --> [*] : displayResult()
+KhoiTao --> ChuanBiDuLieu : batDauTinhLuong()
+ChuanBiDuLieu --> KiemTraPhanCong
+KiemTraPhanCong --> KiemTraCauHinh : [phân công hợp lệ]
+KiemTraPhanCong --> LoiXuLy : [phân công không hợp lệ]
+KiemTraCauHinh --> DangTinhToan : [cấu hình hợp lệ]
+KiemTraCauHinh --> LoiXuLy : [cấu hình không hợp lệ]
 
-Error --> DataPreparation : retry()
-Error --> [*] : cancel()
+DangTinhToan --> HoanThanhTinhToan : [tính toán thành công]
+DangTinhToan --> LoiXuLy : [lỗi tính toán]
 
-note right of Calculating
-  Công thức tính lương:
-  totalAmount = assignment.hours 
-    × rate.value 
-    × degreeCoeff.coefficient 
-    × classCoeff.coefficient
+HoanThanhTinhToan --> LuuLichSu
+LuuLichSu --> TaoBaoCao : [lưu thành công]
+LuuLichSu --> LoiXuLy : [lỗi lưu dữ liệu]
+TaoBaoCao --> [*] : hienThiKetQua()
+
+LoiXuLy --> ChuanBiDuLieu : thuLai()
+LoiXuLy --> [*] : huyBo()
+
+note right of DangTinhToan
+  Công thức tính lương giảng viên:
+  
+  Bước 1: Tính lương cơ bản
+  luongCoBan = soGio × donGia
+  
+  Bước 2: Tính phụ cấp bằng cấp  
+  phuCapBangCap = luongCoBan × (heSoBangCap - 1)
+  
+  Bước 3: Tính phụ cấp lớp học
+  phuCapLop = (luongCoBan + phuCapBangCap) × (heSoLop - 1)
+  
+  Bước 4: Tổng lương
+  tongLuong = luongCoBan + phuCapBangCap + phuCapLop
+  
+  Ví dụ: 60 giờ × 200.000 × 1.5 × 1.2 = 21.600.000 VNĐ
 end note
 
-note bottom of Error
-  Các lỗi có thể xảy ra:
-  - Thiếu dữ liệu phân công
-  - Cấu hình hệ số không hợp lệ
-  - Lỗi kết nối database
-  - Lỗi validation dữ liệu
+note bottom of LoiXuLy
+  Các loại lỗi có thể xảy ra:
+  - Thiếu dữ liệu phân công giảng dạy
+  - Cấu hình hệ số không hợp lệ hoặc bằng 0
+  - Lỗi kết nối cơ sở dữ liệu
+  - Lỗi kiểm tra tính hợp lệ dữ liệu
+  - Phân công đã được tính lương trước đó
+  - Giảng viên hoặc lớp học không tồn tại
 end note
 
 @enduml

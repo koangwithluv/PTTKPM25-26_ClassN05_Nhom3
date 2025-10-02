@@ -1,254 +1,265 @@
 @startuml sequence_diagram_salary_calculation
 !theme blueprint
+
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 10
+
 title Biểu đồ Trình tự - Quy trình Tính Lương Giảng viên
 
-actor Admin as "Admin\n(Quản trị viên)"
-participant SalaryPage as "Salary Calculation\nPage (React)"
-participant CalculateAPI as "Calculate API\n(/api/tinh-tien-day/calculate)"
-participant AssignmentAPI as "Assignment API\n(/api/assignments)"
-participant RateAPI as "Rate API\n(/api/tinh-tien-day/rate)"
-participant DegreeAPI as "Degree Coeff API\n(/api/tinh-tien-day/degree-coeff)"
-participant ClassAPI as "Class Coeff API\n(/api/tinh-tien-day/class-coeff)"
-participant HistoryAPI as "History API\n(/api/tinh-tien-day/history)"
-participant Database as "MySQL Database"
-participant CalculationEngine as "Salary Calculation\nEngine"
+actor Admin as "Quản trị viên"
+participant TrangTinhLuong as "Trang Tính Lương\n(React)"
+participant APIMTinhLuong as "API Tính Lương\n(/api/tinh-tien-day/calculate)"
+participant APIPhanCong as "API Phân Công\n(/api/assignments)"
+participant APIDonGia as "API Đơn Giá\n(/api/tinh-tien-day/rate)"
+participant APIHeSoBangCap as "API Hệ Số Bằng Cấp\n(/api/tinh-tien-day/degree-coeff)"
+participant APIHeSoLop as "API Hệ Số Lớp\n(/api/tinh-tien-day/class-coeff)"
+participant APILichSu as "API Lịch Sử\n(/api/tinh-tien-day/history)"
+participant CSDL as "Cơ Sở Dữ Liệu MySQL"
+participant BoDTinhLuong as "Bộ Động Cơ\nTính Lương"
 
 == Khởi tạo trang tính lương ==
-Admin -> SalaryPage : Truy cập trang tính tiền dạy
-activate SalaryPage
+Admin -> TrangTinhLuong : Truy cập trang tính lương giảng viên
+activate TrangTinhLuong
 
-par Lấy danh sách assignments chưa tính lương
-    SalaryPage -> AssignmentAPI : GET /api/assignments?status=Completed
-    activate AssignmentAPI
-    AssignmentAPI -> Database : SELECT a.*, t.name, c.name\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.status = 'Completed'
-    activate Database
-    Database --> AssignmentAPI : Completed assignments
-    deactivate Database
-    AssignmentAPI --> SalaryPage : Available assignments
-    deactivate AssignmentAPI
-and Lấy cấu hình hiện tại
-    SalaryPage -> RateAPI : GET /api/tinh-tien-day/rate
-    activate RateAPI
-    RateAPI -> Database : SELECT * FROM rates WHERE is_active = 1
-    activate Database
-    Database --> RateAPI : Current rate
-    deactivate Database
-    RateAPI --> SalaryPage : Rate config
-    deactivate RateAPI
+par Lấy danh sách phân công đã hoàn thành
+    TrangTinhLuong -> APIPhanCong : GET /api/assignments?status=Completed
+    activate APIPhanCong
+    APIPhanCong -> CSDL : SELECT a.*, t.name, c.name\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.status = 'Completed'
+    activate CSDL
+    CSDL --> APIPhanCong : Danh sách phân công đã hoàn thành
+    deactivate CSDL
+    APIPhanCong --> TrangTinhLuong : Danh sách phân công có thể tính lương
+    deactivate APIPhanCong
+and Lấy cấu hình đơn giá hiện tại
+    TrangTinhLuong -> APIDonGia : GET /api/tinh-tien-day/rate
+    activate APIDonGia
+    APIDonGia -> CSDL : SELECT * FROM rates WHERE is_active = 1
+    activate CSDL
+    CSDL --> APIDonGia : Đơn giá hiện tại
+    deactivate CSDL
+    APIDonGia --> TrangTinhLuong : Cấu hình đơn giá
+    deactivate APIDonGia
 end
 
-SalaryPage --> Admin : Hiển thị giao diện tính lương
-deactivate SalaryPage
+TrangTinhLuong --> Admin : Hiển thị giao diện tính lương
+deactivate TrangTinhLuong
 
-== Tính lương cho assignment cụ thể ==
-Admin -> SalaryPage : Chọn assignment và nhấn "Tính lương"
-activate SalaryPage
+== Tính lương cho phân công cụ thể ==
+Admin -> TrangTinhLuong : Chọn phân công và nhấn "Tính Lương"
+activate TrangTinhLuong
 
-SalaryPage -> CalculateAPI : POST /api/tinh-tien-day/calculate\n{assignment_id}
-activate CalculateAPI
+TrangTinhLuong -> APIMTinhLuong : POST /api/tinh-tien-day/calculate\n{assignment_id}
+activate APIMTinhLuong
 
-CalculateAPI -> CalculationEngine : initiate calculation
-activate CalculationEngine
+APIMTinhLuong -> BoDTinhLuong : Khởi tạo quá trình tính lương
+activate BoDTinhLuong
 
 == Giai đoạn 1: Thu thập dữ liệu ==
-CalculationEngine -> AssignmentAPI : GET assignment details
-activate AssignmentAPI
-AssignmentAPI -> Database : SELECT a.*, t.degree_id, c.credits\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.id = ?
-activate Database
-Database --> AssignmentAPI : Assignment with teacher and class info
-deactivate Database
-AssignmentAPI --> CalculationEngine : Assignment data\n{id, hours, teacher_id, class_id, degree_id, credits}
-deactivate AssignmentAPI
+BoDTinhLuong -> APIPhanCong : Lấy thông tin phân công chi tiết
+activate APIPhanCong
+APIPhanCong -> CSDL : SELECT a.*, t.degree_id, c.credits, t.name, c.name\nFROM assignments a\nJOIN teachers t ON a.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nWHERE a.id = ?
+activate CSDL
+CSDL --> APIPhanCong : Thông tin phân công với giảng viên và lớp học
+deactivate CSDL
+APIPhanCong --> BoDTinhLuong : Dữ liệu phân công\n{id, so_gio, teacher_id, class_id, degree_id, so_tin_chi}
+deactivate APIPhanCong
 
-par Lấy định mức giờ dạy
-    CalculationEngine -> RateAPI : GET current rate
-    activate RateAPI
-    RateAPI -> Database : SELECT value FROM rates WHERE is_active = 1
-    activate Database
-    Database --> RateAPI : Rate value (e.g., 150000 VND/hour)
-    deactivate Database
-    RateAPI --> CalculationEngine : Current rate
-    deactivate RateAPI
+par Lấy đơn giá giờ dạy
+    BoDTinhLuong -> APIDonGia : Lấy đơn giá hiện tại
+    activate APIDonGia
+    APIDonGia -> CSDL : SELECT value FROM rates WHERE is_active = 1
+    activate CSDL
+    CSDL --> APIDonGia : Đơn giá (Ví dụ: 200.000 VNĐ/giờ)
+    deactivate CSDL
+    APIDonGia --> BoDTinhLuong : Đơn giá hiện tại
+    deactivate APIDonGia
 and Lấy hệ số bằng cấp
-    CalculationEngine -> DegreeAPI : GET degree coefficient
-    activate DegreeAPI
-    DegreeAPI -> Database : SELECT coefficient FROM degree_coefficients\nWHERE degree_id = ? AND is_active = 1
-    activate Database
-    Database --> DegreeAPI : Degree coefficient (e.g., 1.2 for Master)
-    deactivate Database
-    DegreeAPI --> CalculationEngine : Degree coefficient
-    deactivate DegreeAPI
+    BoDTinhLuong -> APIHeSoBangCap : Lấy hệ số bằng cấp
+    activate APIHeSoBangCap
+    APIHeSoBangCap -> CSDL : SELECT coefficient FROM degree_coefficients\nWHERE degree_id = ? AND is_active = 1
+    activate CSDL
+    CSDL --> APIHeSoBangCap : Hệ số bằng cấp (Ví dụ: 1.5 cho Tiến sĩ)
+    deactivate CSDL
+    APIHeSoBangCap --> BoDTinhLuong : Hệ số bằng cấp
+    deactivate APIHeSoBangCap
 and Lấy hệ số lớp học
-    CalculationEngine -> ClassAPI : GET class coefficient
-    activate ClassAPI
-    ClassAPI -> Database : SELECT coefficient FROM class_coefficients\nWHERE credits = ? AND is_active = 1
-    activate Database
-    Database --> ClassAPI : Class coefficient (e.g., 1.1 for 3 credits)
-    deactivate Database
-    ClassAPI --> CalculationEngine : Class coefficient
-    deactivate ClassAPI
+    BoDTinhLuong -> APIHeSoLop : Lấy hệ số lớp học
+    activate APIHeSoLop
+    APIHeSoLop -> CSDL : SELECT coefficient FROM class_coefficients\nWHERE credits = ? AND is_active = 1
+    activate CSDL
+    CSDL --> APIHeSoLop : Hệ số lớp (Ví dụ: 1.2 cho 4 tín chỉ)
+    deactivate CSDL
+    APIHeSoLop --> BoDTinhLuong : Hệ số lớp học
+    deactivate APIHeSoLop
 end
 
-== Giai đoạn 2: Validation dữ liệu ==
-CalculationEngine -> CalculationEngine : Validate all required data
+== Giai đoạn 2: Kiểm tra tính hợp lệ dữ liệu ==
+BoDTinhLuong -> BoDTinhLuong : Kiểm tra tính hợp lệ dữ liệu
 
 alt Tất cả dữ liệu hợp lệ
-    note right of CalculationEngine
-        Validation checks:
-        - Assignment status = "Completed"
-        - Hours > 0
-        - Rate > 0
-        - All coefficients > 0
-        - Teacher and Class exist
+    note right of BoDTinhLuong
+        Kiểm tra:
+        - Trạng thái phân công = "Đã hoàn thành"
+        - Số giờ > 0
+        - Đơn giá > 0
+        - Tất cả hệ số > 0
+        - Giảng viên và Lớp học tồn tại
     end note
     
-    == Giai đoạn 3: Thực hiện tính toán ==
-    CalculationEngine -> CalculationEngine : Calculate salary
-    note right of CalculationEngine
-        Formula:
-        totalAmount = hours × rate × degreeCoeff × classCoeff
+    == Giai đoạn 3: Thực hiện tính toán lương ==
+    BoDTinhLuong -> BoDTinhLuong : Tính toán lương giảng dạy
+    note right of BoDTinhLuong
+        Công thức tính lương:
+        tongTien = soGio × donGia × heSoBangCap × heSoLop
         
-        Example:
-        hours = 45
-        rate = 150,000 VND
-        degreeCoeff = 1.2 (Master degree)
-        classCoeff = 1.1 (3 credits)
+        Ví dụ:
+        soGio = 60 giờ
+        donGia = 200.000 VNĐ/giờ
+        heSoBangCap = 1.5 (Tiến sĩ)
+        heSoLop = 1.2 (4 tín chỉ)
         
-        totalAmount = 45 × 150,000 × 1.2 × 1.1
-                    = 8,910,000 VND
+        tongTien = 60 × 200.000 × 1.5 × 1.2
+                 = 21.600.000 VNĐ
+                 
+        Chi tiết tính toán:
+        - Lương cơ bản = 60 × 200.000 = 12.000.000 VNĐ
+        - Phụ cấp bằng cấp = 12.000.000 × 0.5 = 6.000.000 VNĐ
+        - Phụ cấp lớp học = 18.000.000 × 0.2 = 3.600.000 VNĐ
+        - Tổng lương = 12.000.000 + 6.000.000 + 3.600.000 = 21.600.000 VNĐ
     end note
     
-    == Giai đoạn 4: Lưu kết quả ==
-    CalculationEngine -> Database : BEGIN TRANSACTION
-    activate Database
+    == Giai đoạn 4: Lưu kết quả tính lương ==
+    BoDTinhLuong -> CSDL : Bắt đầu giao dịch (BEGIN TRANSACTION)
+    activate CSDL
     
-    CalculationEngine -> Database : INSERT INTO salary_history\n(assignment_id, teacher_id, hours, rate, degree_coeff,\nclass_coeff, total_amount, calculation_date)
-    Database --> CalculationEngine : History record created
+    BoDTinhLuong -> CSDL : INSERT INTO salary_history\n(assignment_id, teacher_id, so_gio, don_gia, he_so_bang_cap,\nhe_so_lop, tong_tien, ngay_tinh)
+    CSDL --> BoDTinhLuong : Đã tạo bản ghi lịch sử
     
-    CalculationEngine -> Database : UPDATE assignments\nSET status = 'Calculated'\nWHERE id = ?
-    Database --> CalculationEngine : Assignment status updated
+    BoDTinhLuong -> CSDL : UPDATE assignments\nSET status = 'Đã tính lương'\nWHERE id = ?
+    CSDL --> BoDTinhLuong : Đã cập nhật trạng thái phân công
     
-    CalculationEngine -> Database : COMMIT TRANSACTION
-    Database --> CalculationEngine : Transaction completed
-    deactivate Database
+    BoDTinhLuong -> CSDL : Xác nhận giao dịch (COMMIT TRANSACTION)
+    CSDL --> BoDTinhLuong : Giao dịch hoàn tất
+    deactivate CSDL
     
-    CalculationEngine --> CalculateAPI : Calculation successful\n{total_amount, details}
-    deactivate CalculationEngine
+    BoDTinhLuong --> APIMTinhLuong : Tính lương thành công\n{tong_tien, chi_tiet}
+    deactivate BoDTinhLuong
     
-    CalculateAPI --> SalaryPage : 200 OK\n{success: true, result: {...}}
-    deactivate CalculateAPI
+    APIMTinhLuong --> TrangTinhLuong : 200 OK\n{success: true, result: {...}}
+    deactivate APIMTinhLuong
     
-    SalaryPage -> SalaryPage : Cập nhật UI với kết quả
-    SalaryPage --> Admin : Hiển thị kết quả tính lương
+    TrangTinhLuong -> TrangTinhLuong : Cập nhật giao diện với kết quả
+    TrangTinhLuong --> Admin : Hiển thị kết quả tính lương
     
 else Dữ liệu không hợp lệ
-    CalculationEngine --> CalculateAPI : Validation error\n{error: "Missing required data"}
-    deactivate CalculationEngine
+    BoDTinhLuong --> APIMTinhLuong : Lỗi kiểm tra dữ liệu\n{error: "Thiếu dữ liệu bắt buộc"}
+    deactivate BoDTinhLuong
     
-    CalculateAPI --> SalaryPage : 400 Bad Request\n{error: details}
-    deactivate CalculateAPI
+    APIMTinhLuong --> TrangTinhLuong : 400 Bad Request\n{error: chi_tiet_loi}
+    deactivate APIMTinhLuong
     
-    SalaryPage --> Admin : Hiển thị thông báo lỗi
+    TrangTinhLuong --> Admin : Hiển thị thông báo lỗi
 end
 
-deactivate SalaryPage
+deactivate TrangTinhLuong
 
 == Xem lịch sử tính lương ==
-Admin -> SalaryPage : Nhấn tab "Lịch sử"
-activate SalaryPage
+Admin -> TrangTinhLuong : Nhấn tab "Lịch Sử Tính Lương"
+activate TrangTinhLuong
 
-SalaryPage -> HistoryAPI : GET /api/tinh-tien-day/history
-activate HistoryAPI
+TrangTinhLuong -> APILichSu : GET /api/tinh-tien-day/history
+activate APILichSu
 
-HistoryAPI -> Database : SELECT sh.*, t.name as teacher_name,\nc.name as class_name\nFROM salary_history sh\nJOIN assignments a ON sh.assignment_id = a.id\nJOIN teachers t ON sh.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nORDER BY sh.calculation_date DESC
-activate Database
-Database --> HistoryAPI : Salary calculation history
-deactivate Database
+APILichSu -> CSDL : SELECT sh.*, t.name as ten_giang_vien,\nc.name as ten_lop\nFROM salary_history sh\nJOIN assignments a ON sh.assignment_id = a.id\nJOIN teachers t ON sh.teacher_id = t.id\nJOIN classes c ON a.class_id = c.id\nORDER BY sh.ngay_tinh DESC
+activate CSDL
+CSDL --> APILichSu : Lịch sử tính lương
+deactivate CSDL
 
-HistoryAPI --> SalaryPage : History records
-deactivate HistoryAPI
+APILichSu --> TrangTinhLuong : Danh sách lịch sử
+deactivate APILichSu
 
-SalaryPage --> Admin : Hiển thị lịch sử tính lương
-deactivate SalaryPage
+TrangTinhLuong --> Admin : Hiển thị lịch sử tính lương
+deactivate TrangTinhLuong
 
 == Tính lương hàng loạt ==
-Admin -> SalaryPage : Chọn nhiều assignments và nhấn "Tính lương hàng loạt"
-activate SalaryPage
+Admin -> TrangTinhLuong : Chọn nhiều phân công và nhấn "Tính Tất Cả"
+activate TrangTinhLuong
 
-SalaryPage -> CalculateAPI : POST /api/tinh-tien-day/calculate/batch\n{assignment_ids: [1,2,3]}
-activate CalculateAPI
+TrangTinhLuong -> APIMTinhLuong : POST /api/tinh-tien-day/calculate/batch\n{assignment_ids: [1,2,3]}
+activate APIMTinhLuong
 
-CalculateAPI -> CalculationEngine : initiate batch calculation
-activate CalculationEngine
+APIMTinhLuong -> BoDTinhLuong : Khởi tạo tính lương hàng loạt
+activate BoDTinhLuong
 
-loop Cho từng assignment
-    CalculationEngine -> CalculationEngine : Calculate individual salary
+loop Cho từng phân công
+    BoDTinhLuong -> BoDTinhLuong : Tính lương từng phân công
     note right
-        Repeat the same process as single calculation
-        for each assignment in the batch
+        Lặp lại quá trình tính lương đơn lẻ
+        cho từng phân công trong danh sách
     end note
 end
 
-CalculationEngine -> Database : BEGIN BATCH TRANSACTION
-activate Database
+BoDTinhLuong -> CSDL : Bắt đầu giao dịch hàng loạt
+activate CSDL
 
-CalculationEngine -> Database : Batch INSERT INTO salary_history
-CalculationEngine -> Database : Batch UPDATE assignments status
+BoDTinhLuong -> CSDL : Thêm nhiều bản ghi vào salary_history
+BoDTinhLuong -> CSDL : Cập nhật trạng thái nhiều assignments
 
 alt Tất cả thành công
-    CalculationEngine -> Database : COMMIT TRANSACTION
-    Database --> CalculationEngine : Batch operation completed
-    deactivate Database
+    BoDTinhLuong -> CSDL : Xác nhận giao dịch
+    CSDL --> BoDTinhLuong : Xử lý hàng loạt hoàn tất
+    deactivate CSDL
     
-    CalculationEngine --> CalculateAPI : Batch calculation successful\n{processed: 3, failed: 0}
-    deactivate CalculationEngine
+    BoDTinhLuong --> APIMTinhLuong : Tính lương hàng loạt thành công\n{đã_xử_lý: 3, thất_bại: 0}
+    deactivate BoDTinhLuong
     
-    CalculateAPI --> SalaryPage : 200 OK\n{success: true, summary: {...}}
-    deactivate CalculateAPI
+    APIMTinhLuong --> TrangTinhLuong : 200 OK\n{success: true, summary: {...}}
+    deactivate APIMTinhLuong
     
-    SalaryPage --> Admin : Hiển thị tổng kết batch operation
+    TrangTinhLuong --> Admin : Hiển thị tổng kết quá xử lý
     
 else Có lỗi xảy ra
-    CalculationEngine -> Database : ROLLBACK TRANSACTION
-    Database --> CalculationEngine : Transaction rolled back
-    deactivate Database
+    BoDTinhLuong -> CSDL : Hủy giao dịch (ROLLBACK)
+    CSDL --> BoDTinhLuong : Đã hủy giao dịch
+    deactivate CSDL
     
-    CalculationEngine --> CalculateAPI : Batch calculation failed\n{processed: 1, failed: 2, errors: [...]}
-    deactivate CalculationEngine
+    BoDTinhLuong --> APIMTinhLuong : Tính lương hàng loạt thất bại\n{đã_xử_lý: 1, thất_bại: 2, lỗi: [...]}
+    deactivate BoDTinhLuong
     
-    CalculateAPI --> SalaryPage : 500 Internal Server Error\n{errors: [...]}
-    deactivate CalculateAPI
+    APIMTinhLuong --> TrangTinhLuong : 500 Internal Server Error\n{errors: [...]}
+    deactivate APIMTinhLuong
     
-    SalaryPage --> Admin : Hiển thị danh sách lỗi
+    TrangTinhLuong --> Admin : Hiển thị danh sách lỗi
 end
 
-deactivate SalaryPage
+deactivate TrangTinhLuong
 
-note right of Database
-    Bảng salary_history:
-    - id (Primary Key)
-    - assignment_id (Foreign Key)
-    - teacher_id (Foreign Key)
-    - hours (INT - số giờ dạy)
-    - rate (DECIMAL - đơn giá/giờ)
-    - degree_coefficient (DECIMAL)
-    - class_coefficient (DECIMAL)
-    - total_amount (DECIMAL - tổng tiền)
-    - calculation_date (TIMESTAMP)
-    - calculated_by (user_id)
+note right of CSDL
+    Bảng lich_su_tinh_luong (salary_history):
+    - id (Khóa chính)
+    - assignment_id (Khóa ngoại - ID phân công)
+    - teacher_id (Khóa ngoại - ID giảng viên)
+    - so_gio (INT - số giờ giảng dạy)
+    - don_gia (DECIMAL - đơn giá/giờ)
+    - he_so_bang_cap (DECIMAL - hệ số bằng cấp)
+    - he_so_lop (DECIMAL - hệ số lớp học)
+    - tong_tien (DECIMAL - tổng tiền lương)
+    - ngay_tinh (TIMESTAMP - ngày tính lương)
+    - nguoi_tinh (user_id - người thực hiện)
     
-    Index: (teacher_id, calculation_date)
-    Index: (assignment_id) UNIQUE
+    Chỉ mục: (teacher_id, ngay_tinh)
+    Chỉ mục duy nhất: (assignment_id)
 end note
 
-note right of CalculationEngine
-    Business Rules:
-    1. Chỉ tính lương cho assignments "Completed"
-    2. Mỗi assignment chỉ được tính lương 1 lần
-    3. Sử dụng rate và coefficients hiện tại
-    4. Tất cả operations phải atomic (transaction)
-    5. Lưu đầy đủ audit trail trong history
-    6. Validate toàn bộ input trước khi tính
+note right of BoDTinhLuong
+    Quy tắc nghiệp vụ:
+    1. Chỉ tính lương cho phân công "Đã hoàn thành"
+    2. Mỗi phân công chỉ được tính lương 1 lần
+    3. Sử dụng đơn giá và hệ số hiện tại
+    4. Tất cả thao tác phải nguyên tử (transaction)
+    5. Lưu đầy đủ dấu vết kiểm toán trong lịch sử
+    6. Kiểm tra toàn bộ dữ liệu đầu vào trước khi tính
+    7. Công thức: Tổng lương = Số giờ × Đơn giá × Hệ số bằng cấp × Hệ số lớp
 end note
 
 @enduml

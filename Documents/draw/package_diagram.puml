@@ -1,0 +1,156 @@
+@startuml package_diagram
+!theme plain
+skinparam packageStyle rectangle
+skinparam defaultFontName "Arial Unicode MS"
+skinparam defaultFontSize 8
+skinparam packagePadding 2
+skinparam classPadding 1
+skinparam minClassWidth 50
+skinparam packageBorderThickness 1
+skinparam maxMessageSize 100
+skinparam wrapWidth 200
+skinparam nodesep 5
+skinparam ranksep 10
+skinparam class {
+    BackgroundColor White
+    BorderColor Black
+}
+skinparam package {
+    BackgroundColor LightYellow
+    BorderColor DarkBlue
+}
+
+title Biểu đồ Gói - Hệ thống Quản lý Tính Lương Giảng Viên
+
+top to bottom direction
+
+' Định nghĩa các gói chính theo chiều dọc
+package "UI LAYER" as UI {
+    package "components" {
+        Button -[hidden]right- Input
+        Input -[hidden]right- Card
+        Table -[hidden]right- Dialog
+        Dialog -[hidden]right- Form
+    }
+    
+    package "pages" {
+        TrangChu -[hidden]right- DangNhap
+        QuanLyGiaoVien -[hidden]right- QuanLyLopHocPhan
+        QuanLyLopHocPhan -[hidden]right- TinhTienDay
+    }
+    
+    package "layouts" {
+        MainLayout -[hidden]right- AuthLayout
+        Sidebar -[hidden]right- Header
+    }
+}
+
+package "SERVICE LAYER" as SERVICE {
+    package "auth" {
+        DangNhapService -[hidden]right- XacThucService
+        XacThucService -[hidden]right- PhanQuyenService
+    }
+    
+    package "giaovien" {
+        class QuanLyGiaoVienService
+        class QuanLyBangCapService
+        class QuanLyKhoaService
+        class ThongKeGiaoVienService
+    }
+    
+    package "lophocphan" {
+        class QuanLyHocPhanService
+        class QuanLyKiHocService
+        class QuanLyLopHocService
+        class PhanCongGiangDayService
+        class ThongKeLopHocPhanService
+    }
+    
+    package "tinhluong" {
+        class TinhTienDayService
+        class HeSoGiaoVienService
+        class HeSoLopService
+        class LichSuTinhTienService
+        class BaoCaoTinhLuongService
+    }
+}
+
+package "REPOSITORY LAYER" as REPOSITORY {
+    package "interfaces" {
+        IGiaoVienRepository -[hidden]right- IBangCapRepository
+        IBangCapRepository -[hidden]right- IKhoaRepository
+        IHocPhanRepository -[hidden]right- IKiHocRepository
+        IKiHocRepository -[hidden]right- ILopHocRepository
+        IPhanCongRepository -[hidden]right- ITinhLuongRepository
+        ITinhLuongRepository -[hidden]right- INguoiDungRepository
+    }
+    
+    package "implementations" {
+        GiaoVienRepository -[hidden]right- BangCapRepository
+        BangCapRepository -[hidden]right- KhoaRepository
+        HocPhanRepository -[hidden]right- KiHocRepository
+        KiHocRepository -[hidden]right- LopHocRepository
+        PhanCongRepository -[hidden]right- TinhLuongRepository
+        TinhLuongRepository -[hidden]right- NguoiDungRepository
+    }
+    
+    package "database" {
+        KetNoiCSDL -[hidden]right- ThucThiTruyVan
+        ThucThiTruyVan -[hidden]right- QuanLyGiaoDich
+    }
+}
+
+package "DOMAIN LAYER" as DOMAIN {
+    package "entities" {
+        GiaoVien -[hidden]right- BangCap
+        BangCap -[hidden]right- Khoa
+        HocPhan -[hidden]right- KiHoc
+        KiHoc -[hidden]right- LopHoc
+        PhanCongGiangDay -[hidden]right- TinhLuong
+        TinhLuong -[hidden]right- NguoiDung
+    }
+    
+    package "valueobjects" {
+        ThongTinCaNhan -[hidden]right- ThongTinLienHe
+        ThongTinHocTap -[hidden]right- ThongTinCongViec
+    }
+    
+    package "enums" {
+        TrangThaiGiaoVien -[hidden]right- LoaiBangCap
+        VaiTroNguoiDung -[hidden]right- TrangThaiKiHoc
+        TrangThaiKiHoc -[hidden]right- LoaiHocPhan
+    }
+}
+
+package "SUPPORT LAYER" as SUPPORT {
+    package "config" {
+        CauHinhCSDL -[hidden]right- CauHinhBaoMat
+        CauHinhHeThong -[hidden]right- CauHinhAPI
+    }
+    
+    package "utils" {
+        XuLyChuoi -[hidden]right- XuLyNgay
+        MaHoa -[hidden]right- XacThuc
+        XacThuc -[hidden]right- BaoCaoLoi
+    }
+}
+
+' Định nghĩa các mối quan hệ phụ thuộc - sắp xếp theo chiều dọc
+UI ..> SERVICE : <<uses>>
+SERVICE ..> REPOSITORY : <<uses>>  
+REPOSITORY ..> DOMAIN : <<uses>>
+SERVICE ..> DOMAIN : <<uses>>
+REPOSITORY ..> SUPPORT : <<uses>>
+SERVICE ..> SUPPORT : <<uses>>
+UI ..> SUPPORT : <<uses>>
+
+' Mối quan hệ chi tiết
+auth ..> interfaces : <<uses>>
+giaovien ..> interfaces : <<uses>>
+lophocphan ..> interfaces : <<uses>>
+tinhluong ..> interfaces : <<uses>>
+
+implementations ..|> interfaces : <<implements>>
+implementations ..> database : <<uses>>
+
+@enduml
