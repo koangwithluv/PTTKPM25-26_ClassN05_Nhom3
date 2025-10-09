@@ -12,47 +12,19 @@ interface Rate {
   appliedFrom: string
 }
 
-// Thêm interface cho lịch sử tính toán
-interface TeachingHistory {
-  teacherId: number;
-  teacherName: string;
-  className: string;
-  subjectName: string;
-  numLessons: number;
-  rateId: number;
-  degreeCoeffId: number;
-  classCoeffId: number;
-  total: number;
-  calculatedAt: string;
-}
-
 export default function RatePage() {
   const [rates, setRates] = useState<Rate[]>([])
   const [form, setForm] = useState({ name: '', value: '', description: '', appliedFrom: '' })
   const [editingId, setEditingId] = useState<number|null>(null)
 
-  // State cho tổng hợp lương giáo viên
-  const [history, setHistory] = useState<TeachingHistory[]>([])
-  const [loadingHistory, setLoadingHistory] = useState(false)
-
   useEffect(() => {
     fetchRates()
-    fetchHistory()
   }, [])
 
   const fetchRates = async () => {
     const res = await fetch('/api/tinh-tien-day/rate')
     const data = await res.json()
     setRates(data)
-  }
-
-  // Fetch lịch sử tính toán
-  const fetchHistory = async () => {
-    setLoadingHistory(true)
-    const res = await fetch('/tinh-tien-day/api/history')
-    const data = await res.json()
-    setHistory(data)
-    setLoadingHistory(false)
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

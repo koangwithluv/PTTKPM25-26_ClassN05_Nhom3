@@ -11,11 +11,12 @@ interface TeachingHistory {
   academicYear: string;
   semesterName: string;
   numLessons: number;
-  rateId: number;
-  degreeCoeffId: number;
-  classCoeffId: number;
+  rateId: number | null;
+  degreeCoeffId: number | null;
+  classCoeffId: number | null;
   total: number;
   calculatedAt: string;
+  batchId?: string | null;
 }
 
 export default function TinhTienDayPage() {
@@ -24,6 +25,7 @@ export default function TinhTienDayPage() {
   const [selectedYear, setSelectedYear] = useState<string>('')
   const [selectedSemester, setSelectedSemester] = useState<string>('')
   const [calculating, setCalculating] = useState(false)
+  const [calculationMessage, setCalculationMessage] = useState<string | null>(null)
 
   useEffect(() => {
     fetchHistory()
@@ -39,7 +41,27 @@ export default function TinhTienDayPage() {
 
   const handleCalculate = async () => {
     setCalculating(true)
-    await fetch('/tinh-tien-day/api/calculate', { method: 'POST' })
+    setCalculationMessage(null)
+    const params = new URLSearchParams()
+    if (selectedYear) params.set('academicYear', selectedYear)
+    if (selectedSemester) params.set('semesterName', selectedSemester)
+    const response = await fetch(`/tinh-tien-day/api/calculate${params.toString() ? `?${params.toString()}` : ''}`, { method: 'POST' })
+    const data = await response.json()
+    if (data?.success) {
+      const insertedCount = Array.isArray(data.inserted) ? data.inserted.length : 0
+      const skippedCount = Array.isArray(data.skipped) ? data.skipped.length : 0
+      if (insertedCount === 0) {
+        setCalculationMessage('Không có thay đổi mới cần ghi nhận cho kỳ học đã chọn.')
+      } else {
+        const messageParts = [`Đã ghi nhận ${insertedCount} dòng mới${data.batchId ? ` (batch ${data.batchId})` : ''}.`]
+        if (skippedCount > 0) {
+          messageParts.push(`${skippedCount} phân công giữ nguyên dữ liệu trước đó.`)
+        }
+        setCalculationMessage(messageParts.join(' '))
+      }
+    } else if (data?.error) {
+      setCalculationMessage(data.error)
+    }
     await fetchHistory()
     setCalculating(false)
   }
@@ -54,19 +76,30 @@ export default function TinhTienDayPage() {
     (!selectedSemester || h.semesterName === selectedSemester)
   )
 
-  // Tổng hợp theo giáo viên
-  const teacherSummary = filteredHistory.reduce((acc, row) => {
+  // Sử dụng bản ghi mới nhất cho mỗi giáo viên/lớp/kỳ để tránh cộng dồn lịch sử cũ
+  const latestPerAssignment = new Map<string, TeachingHistory>()
+  for (const entry of filteredHistory) {
+    const key = `${entry.teacherId}-${entry.className}-${entry.academicYear}-${entry.semesterName}`
+    const existing = latestPerAssignment.get(key)
+    const entryTime = entry.calculatedAt ? new Date(entry.calculatedAt).getTime() : 0
+    const existingTime = existing?.calculatedAt ? new Date(existing.calculatedAt).getTime() : 0
+    if (!existing || entryTime >= existingTime) {
+      latestPerAssignment.set(key, entry)
+    }
+  }
+
+  const teacherSummary = Array.from(latestPerAssignment.values()).reduce((acc, row) => {
     if (!acc[row.teacherId]) {
       acc[row.teacherId] = {
         teacherName: row.teacherName,
         totalLessons: 0,
-        totalMoney: 0
+        totalMoney: 0,
       }
     }
     acc[row.teacherId].totalLessons += Number(row.numLessons) || 0
     acc[row.teacherId].totalMoney += Number(row.total) || 0
     return acc
-  }, {} as Record<number, { teacherName: string, totalLessons: number, totalMoney: number }>)
+  }, {} as Record<number, { teacherName: string; totalLessons: number; totalMoney: number }>)
 
   const summaryArr = Object.values(teacherSummary)
 
@@ -110,6 +143,9 @@ export default function TinhTienDayPage() {
           </tbody>
         </table>
       </div>
+      {calculationMessage && (
+        <div className="mt-4 text-sm text-muted-foreground">{calculationMessage}</div>
+      )}
       {loading && <div className="mt-4 text-blue-600">Đang tải dữ liệu...</div>}
     </Card>
   )
