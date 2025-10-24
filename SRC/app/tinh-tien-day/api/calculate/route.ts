@@ -69,11 +69,29 @@ export async function POST(req: NextRequest) {
 
     // Nếu có body (tính lương cho 1 trường hợp), giữ nguyên logic cũ
     if (body && Object.keys(body).length > 0) {
-  const { numLessons, rate, degreeCoeff, classCoeff, courseCoeff } = body
+      const { numLessons, rate, degreeCoeff, classCoeff, courseCoeff } = body
+      const numLessonsValue = Number(numLessons)
+      const classCoeffValue = Number(classCoeff)
+      const courseCoeffValue = Number(courseCoeff)
+      const degreeCoeffValue = Number(degreeCoeff)
+      const rateValue = Number(rate)
+
+      const normalizedClassCoeff = Number.isFinite(classCoeffValue) ? classCoeffValue : 0
+      const normalizedCourseCoeff = Number.isFinite(courseCoeffValue) ? courseCoeffValue : 0
+      const normalizedDegreeCoeff = Number.isFinite(degreeCoeffValue) ? degreeCoeffValue : 0
+      const normalizedRate = Number.isFinite(rateValue) ? rateValue : 0
+
+      if (!Number.isFinite(numLessonsValue)) {
+        return NextResponse.json({ error: 'Dữ liệu không hợp lệ', detail: 'Số tiết phải là số hợp lệ.' }, { status: 400 })
+      }
+
       // Số tiết quy đổi = số tiết thực tế * (hệ số học phần + hệ số lớp)
-      const soTietQuyDoi = Number(numLessons) * (Number(courseCoeff) + Number(classCoeff))
+      const soTietQuyDoi = numLessonsValue * (normalizedCourseCoeff + normalizedClassCoeff)
       // Tổng tiền = số tiết quy đổi * hệ số giáo viên * tiền dạy một tiết
-      const total = soTietQuyDoi * Number(degreeCoeff) * Number(rate)
+      const total = soTietQuyDoi * normalizedDegreeCoeff * normalizedRate
+      if (!Number.isFinite(total)) {
+        return NextResponse.json({ error: 'Dữ liệu không hợp lệ', detail: 'Không thể tính tổng tiền với dữ liệu hiện tại.' }, { status: 400 })
+      }
       return NextResponse.json({ total })
     }
 
@@ -123,11 +141,18 @@ export async function POST(req: NextRequest) {
       }
       // Số tiết thực tế và hệ số học phần
       const numLessons = a.periods || 0
-      const courseCoeff = Number(a.courseCoeff) || 0
+  const courseCoeffRaw = Number(a.courseCoeff)
+  const courseCoeff = Number.isFinite(courseCoeffRaw) ? courseCoeffRaw : 0
+  const classCoeffValue = Number(classCoeff)
+  const normalizedClassCoeff = Number.isFinite(classCoeffValue) ? classCoeffValue : 0
       // Số tiết quy đổi = số tiết thực tế * (hệ số học phần + hệ số lớp)
-      const soTietQuyDoi = numLessons * (courseCoeff + Number(classCoeff))
+  const soTietQuyDoi = numLessons * (courseCoeff + normalizedClassCoeff)
       // Tổng tiền = số tiết quy đổi * hệ số giáo viên * tiền dạy một tiết
-      const total = soTietQuyDoi * Number(degreeCoeff) * Number(rate)
+  const degreeCoeffValue = Number(degreeCoeff)
+  const normalizedDegreeCoeff = Number.isFinite(degreeCoeffValue) ? degreeCoeffValue : 0
+  const rateValue = Number(rate)
+  const normalizedRate = Number.isFinite(rateValue) ? rateValue : 0
+  const total = soTietQuyDoi * normalizedDegreeCoeff * normalizedRate
       const [existingRows] = await db.query<TeachingHistoryRow[]>(
         `SELECT * FROM TeachingHistory
          WHERE teacherId = ? AND className = ? AND subjectName = ? AND academicYear = ? AND semesterName = ?

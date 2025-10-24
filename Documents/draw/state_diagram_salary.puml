@@ -1,109 +1,35 @@
-@startuml State_Diagram_Salary_Calculation
-!theme plain
+@startuml
+!theme bluegray
+title Biểu đồ Trạng thái (thu gọn) - Tính tiền dạy
 
-skinparam defaultFontName "Arial Unicode MS"
-skinparam defaultFontSize 10
+[*] --> ChonNamKy
 
-title Biểu đồ Trạng thái - Quá trình Tính Lương Giảng viên
+state ChonNamKy as "Chọn năm/kỳ học"
+state KiemTra as "Kiểm tra dữ liệu"
+state TinhToan as "Tính toán"
+state LuuLichSu as "Lưu lịch sử"
+state HienThi as "Hiển thị kết quả"
+state XemLichSu as "Xem lịch sử"
 
-[*] --> KhoiTao : Bắt đầu
+ChonNamKy --> KiemTra : Tính tiền
+ChonNamKy --> XemLichSu : Xem lịch sử
 
-state KhoiTao {
-  KhoiTao : Chưa có dữ liệu
-  KhoiTao : Cần chuẩn bị dữ liệu đầu vào
-  KhoiTao : Chờ lựa chọn phân công
-}
+KiemTra --> TinhToan : dữ liệu OK
+KiemTra --> ChonNamKy : lỗi
 
-state ChuanBiDuLieu {
-  ChuanBiDuLieu : Chuẩn bị dữ liệu tính lương
-  
-  state KiemTraPhanCong {
-    KiemTraPhanCong : Kiểm tra phân công giảng dạy
-    KiemTraPhanCong : Xác thực mã giảng viên, mã lớp
-    KiemTraPhanCong : Kiểm tra số giờ dạy > 0
-  }
-  
-  state KiemTraCauHinh {
-    KiemTraCauHinh : Kiểm tra cấu hình hệ thống
-    KiemTraCauHinh : Đơn giá, Hệ số bằng cấp, Hệ số lớp
-    KiemTraCauHinh : Tất cả hệ số > 0
-  }
-}
+TinhToan --> LuuLichSu : tính xong
+TinhToan --> ChonNamKy : lỗi
 
-state DangTinhToan {
-  DangTinhToan : Đang thực hiện tính toán
-  DangTinhToan : Áp dụng công thức tính lương
-  DangTinhToan : Tổng tiền = Số giờ × Đơn giá × Hệ số bằng cấp × Hệ số lớp
-  DangTinhToan : Tính phụ cấp bằng cấp và phụ cấp lớp
-}
+LuuLichSu --> HienThi : lưu OK
+LuuLichSu --> ChonNamKy : lỗi
 
-state HoanThanhTinhToan {
-  HoanThanhTinhToan : Hoàn thành tính toán
-  HoanThanhTinhToan : Có kết quả lương cuối cùng
-  
-  state LuuLichSu {
-    LuuLichSu : Lưu vào lịch sử tính lương
-    LuuLichSu : Thêm bản ghi vào bảng salary_history
-    LuuLichSu : Cập nhật trạng thái phân công
-  }
-  
-  state TaoBaoCao {
-    TaoBaoCao : Tạo báo cáo kết quả
-    TaoBaoCao : Định dạng hiển thị
-    TaoBaoCao : Chuẩn bị dữ liệu xuất file
-  }
-}
+HienThi --> ChonNamKy
+XemLichSu --> ChonNamKy
 
-state LoiXuLy {
-  LoiXuLy : Lỗi trong quá trình xử lý
-  LoiXuLy : Hiển thị thông báo lỗi cụ thể
-  LoiXuLy : Ghi log lỗi vào hệ thống
-}
-
-KhoiTao --> ChuanBiDuLieu : batDauTinhLuong()
-ChuanBiDuLieu --> KiemTraPhanCong
-KiemTraPhanCong --> KiemTraCauHinh : [phân công hợp lệ]
-KiemTraPhanCong --> LoiXuLy : [phân công không hợp lệ]
-KiemTraCauHinh --> DangTinhToan : [cấu hình hợp lệ]
-KiemTraCauHinh --> LoiXuLy : [cấu hình không hợp lệ]
-
-DangTinhToan --> HoanThanhTinhToan : [tính toán thành công]
-DangTinhToan --> LoiXuLy : [lỗi tính toán]
-
-HoanThanhTinhToan --> LuuLichSu
-LuuLichSu --> TaoBaoCao : [lưu thành công]
-LuuLichSu --> LoiXuLy : [lỗi lưu dữ liệu]
-TaoBaoCao --> [*] : hienThiKetQua()
-
-LoiXuLy --> ChuanBiDuLieu : thuLai()
-LoiXuLy --> [*] : huyBo()
-
-note right of DangTinhToan
-  Công thức tính lương giảng viên:
-  
-  Bước 1: Tính lương cơ bản
-  luongCoBan = soGio × donGia
-  
-  Bước 2: Tính phụ cấp bằng cấp  
-  phuCapBangCap = luongCoBan × (heSoBangCap - 1)
-  
-  Bước 3: Tính phụ cấp lớp học
-  phuCapLop = (luongCoBan + phuCapBangCap) × (heSoLop - 1)
-  
-  Bước 4: Tổng lương
-  tongLuong = luongCoBan + phuCapBangCap + phuCapLop
-  
-  Ví dụ: 60 giờ × 200.000 × 1.5 × 1.2 = 21.600.000 VNĐ
-end note
-
-note bottom of LoiXuLy
-  Các loại lỗi có thể xảy ra:
-  - Thiếu dữ liệu phân công giảng dạy
-  - Cấu hình hệ số không hợp lệ hoặc bằng 0
-  - Lỗi kết nối cơ sở dữ liệu
-  - Lỗi kiểm tra tính hợp lệ dữ liệu
-  - Phân công đã được tính lương trước đó
-  - Giảng viên hoặc lớp học không tồn tại
+note right of TinhToan
+  Công thức:
+  soTietQuyDoi = soTiet × (heSoHocPhan + heSoLop)
+  tongTien = soTietQuyDoi × heSoBangCap × donGia
 end note
 
 @enduml

@@ -1,0 +1,64 @@
+@startuml
+!theme bluegray
+title Biểu đồ Trạng thái (thu gọn) - Quản lý Giảng viên
+
+[*] --> DanhSach
+
+state DanhSach {
+  state "Danh sách" as List
+  [*] --> List
+}
+
+DanhSach --> TaoMoi : Thêm
+DanhSach --> ChinhSua : Sửa
+DanhSach --> Xoa : Xóa
+DanhSach --> XemChiTiet : Xem
+
+state TaoMoi {
+  state "Nhập form" as FormNew
+  state "Validate" as ValNew
+  state "Lưu" as SaveNew
+  [*] --> FormNew
+  FormNew --> ValNew : gửi
+  ValNew --> SaveNew : hợp lệ
+  ValNew --> FormNew : lỗi
+  SaveNew --> [*] : thành công
+  SaveNew --> FormNew : lỗi DB
+}
+
+state ChinhSua {
+  state "Sửa form" as FormEdit
+  state "Validate" as ValEdit
+  state "Cập nhật" as SaveEdit
+  [*] --> FormEdit
+  FormEdit --> ValEdit : gửi
+  ValEdit --> SaveEdit : hợp lệ
+  ValEdit --> FormEdit : lỗi
+  SaveEdit --> [*] : thành công
+  SaveEdit --> FormEdit : lỗi DB
+}
+
+state Xoa {
+  state "Xác nhận" as Confirm
+  state "Kiểm tra" as Check
+  [*] --> Confirm
+  Confirm --> Check : đồng ý
+  Check --> [*] : xóa OK
+  Check --> [*] : có ràng buộc
+}
+
+state XemChiTiet {
+  state "Chi tiết" as Detail
+  [*] --> Detail
+}
+
+TaoMoi --> DanhSach
+ChinhSua --> DanhSach
+Xoa --> DanhSach
+XemChiTiet --> DanhSach
+
+note right of Check
+  Kiểm tra phân công
+end note
+
+@enduml
